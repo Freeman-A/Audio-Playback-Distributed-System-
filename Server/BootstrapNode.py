@@ -1,6 +1,6 @@
 import socket
 import threading
-
+import pickle
 
 class BootstrapNode:
     def __init__(self, host, port):
@@ -17,7 +17,7 @@ class BootstrapNode:
         print(f"Bootstrap Node listening on {self.host}:{self.port}")
 
         while True:
-            client_socket, client_address = bootstrap_socket.accept()  # connected nodes
+            client_socket, client_address = bootstrap_socket.accept()  # connected clients(nodes)
             client_thread = threading.Thread(
                 target=self.handle_client, args=(client_socket,))  # target service
             client_thread.start()
@@ -26,14 +26,18 @@ class BootstrapNode:
         with self.lock:
             self.clients.append(client_socket)
 
-        clients_str = ",".join(
+        connected_clients_str = ",".join(
             [f"{client.getpeername()[0]}:{client.getpeername()[1]}" for client in self.clients])
 
-        client_socket.send(clients_str.encode('utf-8'))
+        print(connected_clients_str)
+        
+        data = client_socket.recv(1024)
+        recieved_message = pickle.loads(data)
 
+        print(recieved_message)
 
 def main():
-    boostrap_node = BootstrapNode('127.0.0.1', 9090)
+    boostrap_node = BootstrapNode("127.0.0.1", 50002)
     bootstrap_thread = threading.Thread(target=boostrap_node.start())
     bootstrap_thread.start()
 
