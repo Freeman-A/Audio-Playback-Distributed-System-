@@ -6,7 +6,7 @@ import time
 class AuthNode(socket.socket):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.node_name = f"AN{random.random()}"
+        self.node_name = f"AN{random.randint(1, 10)}"
 
     def initialize(self):
         """
