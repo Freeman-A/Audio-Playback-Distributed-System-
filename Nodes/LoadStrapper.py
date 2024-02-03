@@ -24,6 +24,8 @@ class LoadStrapper(socket.socket):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.lock = threading.Lock()
+        self.connected_nodes = {}
 
     def initialize(self):
         """
@@ -32,7 +34,7 @@ class LoadStrapper(socket.socket):
         Returns:
             bool: True if the socket is successfully bound to a port, False otherwise.
         """
-        host = socket.gethostbyname(socket.gethostname())
+        host = "172.27.192.1"
         for port in range(50000, 50011):
             try:
                 self.bind((host, port))
@@ -42,20 +44,20 @@ class LoadStrapper(socket.socket):
                 print(f"Socket bind failed on {host}:{port}")
 
         print(f"Unable to bind to any port in range 50000, 50010")
+        return False
 
-    def handle_connection(self, name, conn, addr):
-        """
-        Handles a new connection to the load balancer.
+    def handle_connections(self, conn, addr):
+        data = conn.recv(1024).decode("utf-8")
 
-        Args:
-            name (str): The name of the connection.
-            conn (socket.socket): The socket object representing the connection.
-            addr (tuple): The address of the client.
+        node_name, node_type = data.split(":")
 
-        Returns:
-            None
-        """
-        print(f"Connection of {name} at {addr} has been established")
+        with self.lock:
+            print(
+                f"Connection at {addr} has been established with {node_name}")
+            self.connected_nodes[node_name] = {
+                'type': node_type, 'address': addr[0], 'port': addr[1]}
+
+            print(self.connected_nodes)
 
     def start(self):
         """
@@ -69,7 +71,7 @@ class LoadStrapper(socket.socket):
         while True:
             conn, addr = self.accept()
             thread = threading.Thread(
-                target=self.handle_connection, args=(conn, addr))
+                target=self.handle_connections, args=(conn, addr))
             thread.start()
 
 
