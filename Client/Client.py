@@ -1,29 +1,50 @@
 import socket
+import socket
 
 
-class BootstrapClient:
-    def __init__(self, bootstrap_host, bootstrap_port):
-        self.bootstrap_host = bootstrap_host
-        self.bootstrap_port = bootstrap_port
+class Client(socket.socket):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def connect_to_bootstrap(self):
-        bootstrap_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        bootstrap_socket.connect((self.bootstrap_host, self.bootstrap_port))
+    def initialize(self):
+        host = self.gethostname(self.gethostname())
+        for port in range(50000, 50011):
+            try:
+                self.bind((self.gethostbyname(host), port))
+                print(f"Socket bound to {host}:{port}")
+                return True
+            except Exception as e:
+                print(f"Binding failed on {host}:{port}")
 
-        servers_str = bootstrap_socket.recv(1024).decode('utf-8')
-        servers_list = servers_str.split(',')
+    def connect_to_load_balancer(self, load_balancer_address):
+        self.connect(load_balancer_address)
+        available_authnodes = self.receive_available_authnodes()
+        authnode_address = self.select_authnode(available_authnodes)
+        self.connect_to_authnode(authnode_address)
 
-        print("Connected Servers:")
-        for server in servers_list:
-            print(server)
+    def receive_available_authnodes(self):
+        # Implement the logic to receive the available authnode names from the load balancer
+        # and return the list of names
+        pass
 
-        bootstrap_socket.close()
+    def select_authnode(self, available_authnodes):
+        # Implement the logic to select an authnode from the available_authnodes list
+        # and return the address of the selected authnode
+        pass
 
+    def connect_to_authnode(self, authnode_address):
+        self.connect(authnode_address)
+        self.register_user()
 
-def main():
-    bootstrap_client = BootstrapClient('127.0.0.1', 9090)
-    bootstrap_client.connect_to_bootstrap()
+    def register_user(self):
+        # Implement the logic to register a user name and password with the authentication node
+        pass
 
 
 if __name__ == "__main__":
-    main()
+    client = Client(socket.AF_INET, socket.SOCK_STREAM)
+    if client.initialize():
+        try:
+            client.initialize()
+        except:
+            print("Client closed")

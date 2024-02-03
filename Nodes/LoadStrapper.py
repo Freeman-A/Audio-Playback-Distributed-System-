@@ -9,11 +9,12 @@ class LoadStrapper(socket.socket):
     Inherits from the `socket.socket` class.
 
     Attributes:
-        None
+        lock (threading.Lock): A lock object for thread synchronization.
+        connected_nodes (dict): A dictionary to store information about connected nodes.
 
     Methods:
         initialize: Binds the socket to an available port in the range 50000-50010.
-        handle_connection: Handles a new connection to the load balancer.
+        handle_connections: Handles a new connection to the load balancer.
         start: Starts the load balancer by listening for incoming connections.
 
     Usage:
@@ -47,6 +48,16 @@ class LoadStrapper(socket.socket):
         return False
 
     def handle_connections(self, conn, addr):
+        """
+        Handles a new connection to the load balancer.
+
+        Args:
+            conn (socket.socket): The socket object representing the connection.
+            addr (tuple): The address of the connected node.
+
+        Returns:
+            None
+        """
         while True:
             try:
                 data = conn.recv(1024).decode("utf-8")
@@ -94,6 +105,17 @@ class LoadStrapper(socket.socket):
             print("Load balancer shutting down...")
         finally:
             self.close()
+
+    def get_node_info(self, node_name):
+        """
+        Get the address and port of the node with the given name.
+        Args:
+            node_name (str): The name of the node.
+        Returns:
+            tuple: The address and port of the node.
+        """
+        with self.lock:
+            return self.connected_nodes.get(node_name, None)
 
 
 if __name__ == "__main__":
