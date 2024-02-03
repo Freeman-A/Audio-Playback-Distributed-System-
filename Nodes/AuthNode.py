@@ -3,7 +3,7 @@ import random
 import time
 
 
-class AuthNode (socket.socket):
+class AuthNode(socket.socket):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.node_name = f"AN{random.random()}"
@@ -36,10 +36,11 @@ class AuthNode (socket.socket):
 
             print("Node name successfully sent to Loadstrapper.")
 
-            # Add a loop to keep the connection open
+            self.settimeout(60)
+
             while True:
                 time.sleep(60)
-                print("alive")
+                print("Alive")
 
         except ConnectionRefusedError:
             print("Error connecting to Loadstrapper: Connection refused")
@@ -52,5 +53,9 @@ if __name__ == "__main__":
     if auth_node.initialize():
         try:
             auth_node.connect_to_loadbalancer("172.27.192.1")
+        except KeyboardInterrupt:
+            print("Node closed by user")
         except:
             print("Error in connecting to the load balancer")
+        finally:
+            auth_node.close()

@@ -47,17 +47,32 @@ class LoadStrapper(socket.socket):
         return False
 
     def handle_connections(self, conn, addr):
-        data = conn.recv(1024).decode("utf-8")
+        while True:
+            try:
+                data = conn.recv(1024).decode("utf-8")
 
-        node_name, node_type = data.split(":")
+                if not data:
+                    break
 
-        with self.lock:
-            print(
-                f"Connection at {addr} has been established with {node_name}")
-            self.connected_nodes[node_name] = {
-                'type': node_type, 'address': addr[0], 'port': addr[1]}
+                node_name, node_type = data.split(":")
 
-            print(self.connected_nodes)
+                with self.lock:
+                    print(
+                        f"Connection at {addr} has been established with {node_name}")
+                    self.connected_nodes[node_name] = {
+                        'type': node_type, 'address': addr[0], 'port': addr[1]}
+
+                    print(self.connected_nodes)
+
+                # Send a response message to the connected node
+                response = "Message received"
+                conn.send(response.encode("utf-8"))
+
+            except ConnectionResetError:
+                print(f"Connection at {addr} has been closed")
+                break
+
+        conn.close()
 
     def start(self):
         """
@@ -68,11 +83,16 @@ class LoadStrapper(socket.socket):
         """
         self.listen(5)
         print("Socket is listening for connections")
-        while True:
-            conn, addr = self.accept()
-            thread = threading.Thread(
-                target=self.handle_connections, args=(conn, addr))
-            thread.start()
+        try:
+            while True:
+                conn, addr = self.accept()
+                thread = threading.Thread(
+                    target=self.handle_connections, args=(conn, addr))
+                thread.start()
+        except KeyboardInterrupt:
+            print("Load balancer shutting down...")
+        finally:
+            self.close()
 
 
 if __name__ == "__main__":
