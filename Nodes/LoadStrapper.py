@@ -69,10 +69,11 @@ class LoadStrapper(socket.socket):
                 conn.send(response.encode("utf-8"))
 
             except ConnectionResetError:
-                print(f"Connection at {addr} has been closed")
+                print(
+                    f"Connection at {self.connected_nodes[node_name]} has been closed")
+                conn.close()
+                del self.connected_nodes[node_name]
                 break
-
-        conn.close()
 
     def start(self):
         """
