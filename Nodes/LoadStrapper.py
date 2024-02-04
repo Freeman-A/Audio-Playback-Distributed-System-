@@ -1,7 +1,9 @@
 import socket
 import threading
 import traceback
+import random
 import time
+import json
 
 
 class LoadStrapper():
@@ -55,20 +57,98 @@ class LoadStrapper():
 
         while True:
             client_socket, client_address = self.bootstrap_socket.accept()
-            print(f"Received connection from {client_address}")
             # Handle client connection here
             threading.Thread(target=self.handle_client_messages,
                              args=(client_socket,)).start()
 
     def handle_client_messages(self, client_socket):
+
         while True:
             try:
-                message = client_socket.recv(1024).decode()
-                if message:
-                    # Process the received message
-                    print(f"Received message: {message}")
+                message_str = client_socket.recv(1024).decode("utf-8")
+                if message_str:
+                    message = json.loads(message_str)
+
+                    node_type = message.get("node_type")
+
+                    match node_type:
+                        case "AuthNode":
+                            self.connected_nodes[message.get("node_name")] = {"address": message.get(
+                                "node_IP"), "port": message.get("node_port")}
+
+                        case "Client":
+                            self.connected_clients[message.get("node_name")] = {
+                                "address": client_socket.getpeername()[0], "port": client_socket.getpeername()[1]}
+
+                            if message.get("purpose") == "REQUEST_AUTH_NODE":
+
+                                if self.connected_nodes:
+                                    # send the address and port of the AuthNode to the client
+                                    auth_node = random.choice(
+                                        list(self.connected_nodes.values()))
+                                    client_socket.sendall(
+                                        json.dumps(auth_node).encode("utf-8"))
+                                else:   # If no AuthNode is available
+                                    client_socket.sendall(
+                                        json.dumps({"error": "No AuthNode available"}).encode("utf-8"))
+
+                        case _:
+                            print("Unknown node type")
+
             except:
                 traceback.print_exc()
+                break
+
+
+def handle_client_messages(self, client_socket):
+    while True:
+        try:
+            message_str = client_socket.recv(1024).decode("utf-8")
+            if message_str:
+                message = json.loads(message_str)
+
+                node_type = message.get("node_type")
+
+                match node_type:
+                    case "AuthNode":
+                        self.connected_nodes[message.get("node_name")] = {"address": message.get(
+                            "node_IP"), "port": message.get("node_port")}
+
+                    case "Client":
+                        self.connected_clients[message.get("node_name")] = {
+                            "address": client_socket.getpeername()[0], "port": client_socket.getpeername()[1]}
+
+                        if message.get("purpose") == "REQUEST_AUTH_NODE":
+
+                            if self.connected_nodes:
+                                # send the address and port of the AuthNode to the client
+                                auth_node = random.choice(
+                                    list(self.connected_nodes.values()))
+                                client_socket.sendall(
+                                    json.dumps(auth_node).encode("utf-8"))
+                            else:   # If no AuthNode is available
+                                client_socket.sendall(
+                                    json.dumps({"error": "No AuthNode available"}).encode("utf-8"))
+
+                    case _:
+                        print("Unknown node type")
+
+        except:
+            traceback.print_exc()
+            break
+
+    # Remove the client from the connected_clients dictionary
+    with self.lock:
+        for node_name, node_info in self.connected_clients.items():
+            if node_info["address"] == client_socket.getpeername()[0] and node_info["port"] == client_socket.getpeername()[1]:
+                del self.connected_clients[node_name]
+                break
+
+    # Remove the node from the connected_nodes dictionary
+    with self.lock:
+        for node_name, node_info in self.connected_nodes.items():
+            if node_info["address"] == client_socket.getpeername()[0] and node_info["port"] == client_socket.getpeername()[1]:
+                del self.connected_nodes[node_name]
                 break
 
     def run(self):

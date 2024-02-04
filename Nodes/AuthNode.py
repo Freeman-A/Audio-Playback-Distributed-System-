@@ -2,6 +2,7 @@ import socket
 import random
 import threading
 import time
+import json
 
 
 class AuthNode():
@@ -52,7 +53,10 @@ class AuthNode():
                 "node_port": self.node_port,
                 "node_type": "AuthNode"
             }
-            load_balancer_client.sendall(str(node_details).encode())
+
+            json_data = json.dumps(node_details)
+
+            load_balancer_client.sendall(json_data.encode("utf-8"))
             load_balancer_client.close()  # Close the connection after sending details
         except:
             print("Error connecting to load balancer")
