@@ -39,33 +39,34 @@ class AuthNode():
 
     def connect_to_load_balancer(self):
         try:
-            load_balancer_client = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
-            load_balancer_client.settimeout(1)  # Add a timeout of 5 seconds
-            load_balancer_client.connect(("172.27.192.1", 50000))
-            print("Connected to load balancer")
+            self.listen(5)
+            while True:
+                conn, addr = self.accept()
+                threading.Thread(target=self.handle_client,
+                                 args=(conn, addr)).start()
 
-            # Send node details to load balancer
-            node_details = {
-                "node_name": self.node_name,
-                "node_IP":  self.node_ip,
-                "node_port": self.node_port,
-                "node_type": "AuthNode"
-            }
-            load_balancer_client.sendall(str(node_details).encode())
-            load_balancer_client.close()  # Close the connection after sending details
-        except:
-            print("Error connecting to load balancer")
+        except Exception as e:
+            print(f"Error in listening for clients: {str(e)}")
 
-        print("Node details sent to load balancer")
+    def handle_client(self, conn, addr):
+        try:
+            data = conn.recv(1024).decode("utf-8")
 
-    def run(self):
-        server_thread = threading.Thread(target=self.start_auth_node)
-        server_thread.start()
+            if data:
+                purpose, username, password = data.split(":")
+                match purpose:
+                    case "login":
+                        print(f"Received login request from {username}")
+                    case "register":
+                        print(f"Received registration request")
 
-        time.sleep(1)  # Wait for server to start
+            print(f"Received data from {addr}: {data}")
 
-        self.connect_to_load_balancer()
+            # Authenticate the client
+            self.authenticate_client(conn, addr, data)
+
+        except Exception as e:
+            print(f"Error in handling client: {str(e)}")
 
 
 if __name__ == "__main__":
