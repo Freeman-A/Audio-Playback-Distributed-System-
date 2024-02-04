@@ -1,30 +1,62 @@
 import socket
-import socket
-import wx
 import random
+import traceback
+import time
 
 
 class Client(socket.socket):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.client_name = f"C{random.randint(1, 10)}"
-        self.app = wx.App(False)
-        self.frame = wx.Frame(None, wx.ID_ANY, "Client Node", size=(300, 200))
-        self.panel = wx.Panel(self.frame, wx.ID_ANY)
+        self.client_name = f"Client{random.random()}"
 
-        self.button = wx.Button(self.panel, label="Authenticate", pos=(0, 0))
-        self.button.Bind(wx.EVT_BUTTON, self.authenticate)
+    def establish_user_purpose(self, address):
+        try:
+            purpose = input("Enter purpose: Login or Register").lower()
 
-        self.frame.Show(True)
-        self.app.MainLoop()
+            match purpose:
+                case "login":
+                    username = input("Enter username: ")
+                    password = input("Enter password: ")
+                    data = f"{purpose}:{username}:{password}"
+                    self.connect_to_authnode(address, data)
+
+                case"register":
+                    username = input("Enter username: ")
+                    password = input("Enter password: ")
+                    data = f"{purpose}:{username}:{password}"
+                    self.connect_to_authnode(address, data)
+                case _:
+                    print("Invalid input. Please try again.")
+
+        except Exception as e:
+            print("Invalid input. Please try again.")
+
+    def connect_to_authnode(self, address, data):
+        try:
+            self.connect(address)
+            self.sendall(data.encode("utf-8"))
+
+            response = self.recv(1024).decode("utf-8")
+
+            time.timeout(5)
+
+            print(response)
+
+        except ConnectionRefusedError:
+            print("Error connecting to AuthNode: Connection refused")
+        except Exception as e:
+            print(f"Error connecting to AuthNode: {str(e)}")
+            print(traceback.format_exc())
 
     def authenticate(self, address):
         try:
-            self.connect_to_loadbalancer(
+
+            response = self.connect_to_loadbalancer(
                 address, "Authenticate")
 
-            if address:
-                pass
+            if response:
+                name, ip, port = response.split(":")
+                self.establish_user_purpose((ip, port))
 
         except Exception as e:
             print(f"Error in authenticating user: {str(e)}")
@@ -63,6 +95,7 @@ class Client(socket.socket):
                             "Failed to authenticate user. No auth node available. Try again later.")
                         return None
 
+                    self.close()
                     return auth_node_address
 
         except ConnectionRefusedError:
@@ -70,6 +103,7 @@ class Client(socket.socket):
             pass
         except Exception as e:
             print(f"Error connecting to Loadstrapper: {str(e)}")
+            print(traceback.format_exc())
 
 
 if __name__ == "__main__":
@@ -78,4 +112,4 @@ if __name__ == "__main__":
         try:
             client.authenticate("172.27.192.1")
         except:
-            print("Client closed")
+            print("Error in authenticating user")

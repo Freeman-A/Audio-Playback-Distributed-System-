@@ -1,5 +1,6 @@
 import socket
 import random
+import threading
 import time
 
 
@@ -37,16 +38,57 @@ class AuthNode(socket.socket):
 
             print("Node name successfully sent to Loadstrapper.")
 
-            self.settimeout(60)
+            # Start a separate thread for ongoing communication with the Load Balancer
+            threading.Thread(
+                target=self.communicate_with_load_balancer).start()
 
-            while True:
-                time.sleep(60)
-                print("Alive")
+            # Start a separate thread to listen for client connections
+            threading.Thread(target=self.listen_for_clients).start()
 
         except ConnectionRefusedError:
             print("Error connecting to Loadstrapper: Connection refused")
         except Exception as e:
             print(f"Error connecting to Loadstrapper: {str(e)}")
+
+    def communicate_with_load_balancer(self):
+        try:
+            while True:
+                time.sleep(320)
+                print("Sending heartbeat to Load Balancer")
+                self.sendall("Heartbeat".encode("utf-8"))
+        except Exception as e:
+            print(f"Error in communicating with Load Balancer: {str(e)}")
+
+    def listen_for_clients(self):
+        try:
+            self.listen(5)
+            while True:
+                conn, addr = self.accept()
+                threading.Thread(target=self.handle_client,
+                                 args=(conn, addr)).start()
+
+        except Exception as e:
+            print(f"Error in listening for clients: {str(e)}")
+
+    def handle_client(self, conn, addr):
+        try:
+            data = conn.recv(1024).decode("utf-8")
+            
+            if data: 
+                purpose, username, password = data.split(":")
+                match purpose: 
+                    case "login":
+                        
+            
+            
+
+            print(f"Received data from {addr}: {data}")
+
+            # Authenticate the client
+            self.authenticate_client(conn, addr, data)
+
+        except Exception as e:
+            print(f"Error in handling client: {str(e)}")
 
 
 if __name__ == "__main__":
