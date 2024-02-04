@@ -71,6 +71,8 @@ class AuthNode():
 
         self.connect_to_load_balancer()
 
+        server_thread.join()
+
 
 if __name__ == "__main__":
     auth_node = AuthNode()

@@ -9,7 +9,6 @@ import json
 class Client():
     def __init__(self):
         self.client_name = f"Client{random.random()}"
-        self.client_name = f"Client{random.random()}"
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def connect_to_loadbalancer(self, load_balancer_ip, client_port):
@@ -40,13 +39,17 @@ class Client():
                 auth_node_ip = auth_node_info.get("address")
                 auth_node_port = auth_node_info.get("port")
 
-                self.client_socket.connect((auth_node_ip, auth_node_port))
+                # Connect to AuthNode only if it's not already connected
+                if not (auth_node_ip == self.client_socket.getpeername()[0] and auth_node_port == self.client_socket.getpeername()[1]):
+                    auth_node_socket = socket.socket(
+                        socket.AF_INET, socket.SOCK_STREAM)
+                    auth_node_socket.connect((auth_node_ip, auth_node_port))
+                    print(
+                        f"Connected to AuthNode: {auth_node_ip}:{auth_node_port}")
 
             except Exception as e:
                 print(f"Error loading JSON: {e}")
-
                 print(f"Received AuthNode info: {auth_node_info}")
-            print(f"Received AuthNode info: {auth_node_info}")
 
         except Exception as e:
             traceback.print_exc()
