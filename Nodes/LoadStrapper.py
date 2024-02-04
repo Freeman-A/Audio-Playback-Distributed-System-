@@ -66,22 +66,23 @@ class LoadStrapper(socket.socket):
                 if not data:
                     break
 
-                name, node_type, node_purpose = data.split(":")
+                name, node_type, node_purpose, communication_port = data.split(
+                    ":")
 
                 with self.lock:
                     print(
                         f"Connection at {addr} has been established with {name}")
 
                     match node_purpose:
-                        case "Establish Connection":
+                        case "REGISTERING_NODE_ADDRESS":
                             if node_type == "AuthNode":
                                 self.connected_nodes[name] = {
-                                    'type': node_type, 'address': addr[0], 'port': addr[1]}
+                                    'type': node_type, 'ip': addr[0], 'port': communication_port}
                         case "Authenticate":
                             if node_type == "Client":
                                 # Authenticate the user send them the address of an available auth node
                                 self.connected_clients[name] = {'type': node_type,
-                                                                'address': addr[0], 'port': addr[1]}
+                                                                'address': addr[0], 'port': communication_port}
 
                                 auth_node = next(
                                     (node for node in self.connected_nodes if self.connected_nodes[node]['type'] == "AuthNode"))
