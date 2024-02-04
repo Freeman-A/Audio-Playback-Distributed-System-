@@ -4,111 +4,71 @@ import threading
 import time
 
 
-class AuthNode(socket.socket):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.node_name = f"AN{random.randint(1, 10)}"
+class AuthNode():
+    def __init__(self):
+        self.node_name = f"AN{random.randint(0, 10)}"
+        self.node_ip = None
+        self.node_port = None
+        self.server_socket = None
 
-    def assign_ports(self):
-        """
-        Binds the socket to an available port in the range 50000-50010.
-
-        Returns:
-            tuple: A tuple containing the load balancer port and client port if successfully bound, None otherwise.
-        """
-        host = socket.gethostbyname(socket.gethostname())
-        load_balancer_port = self.find_port_in_range(host)
-
-        client_socket = AuthNode(socket.AF_INET, socket.SOCK_STREAM)
-        client_port = client_socket.find_port_in_range(host)
-
-        if load_balancer_port is not None and client_port is not None:
-            return (load_balancer_port, client_port)
-        else:
-
-            print("Unable to bind to any port in range 50000, 50010")
-            return False
-
-    def find_port_in_range(self, host):
-        """
-        Finds an available port in the specified range.
-
-        Args:
-            host (str): The host IP address.
-            var (int): The port variable to assign the found port to.
-
-        Returns:
-            int: The found port if successful, None otherwise.
-        """
+    def bind_server_socket(self, host):
         for port in range(50000, 50011):
             try:
-                self.bind((host, port))
+                self.server_socket.bind((host, port))
+                print(f"Socket bound to {host}:{port}")
                 return port
-            except Exception as e:
-                print(e)
+            except:
                 print(f"Socket bind failed on {host}:{port}")
 
-    def connect_to_loadbalancer(self, load_balancer_ip, client_port):
-        """
-        Connects to the load balancer and registers the node's address.
-
-        Args:
-            load_balancer_ip (str): The IP address of the load balancer.
-        """
+    def start_auth_node(self):
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.node_ip = socket.gethostbyname(socket.gethostname())
         try:
-            node_type = "AuthNode"
-            purpose = "REGISTERING_NODE_ADDRESS"
-            data = f"{self.node_name}:{node_type}:{purpose}:{client_port}"
-            self.connect((load_balancer_ip, 50000))
-            self.sendall(data.encode("utf-8"))
+            self.node_port = self.bind_server_socket(self.node_ip)
+        except:
+            print(f"Unable to bind to any port in range 50000, 50010")
+            return False
 
-        except ConnectionRefusedError:
-            print("Error connecting to Loadstrapper: Connection refused")
-        except Exception as e:
-            print(f"Error connecting to Loadstrapper: {str(e)}")
+        self.server_socket.listen(5)
+        print(f"Server started on port {self.node_port}")
 
-    def handle_client(self, conn, addr):
-        """
-        Handles the client connection.
+        while True:
+            client_socket, client_address = self.server_socket.accept()
+            print(f"Received connection from {client_address}")
+            # Handle client connection here
 
-        Args:
-            conn (socket.socket): The client socket connection.
-            addr (tuple): The client address (IP, port).
-        """
+    def connect_to_load_balancer(self):
         try:
-            data = conn.recv(1024).decode("utf-8")
 
-            if data:
-                purpose, username, password = data.split(":")
-                match purpose:
-                    case "login":
-                        print(f"Received login request from {username}")
-                    case "register":
-                        print(f"Received registration request")
+            load_balancer_client = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            load_balancer_client.connect(
+                ("172.27.192.1", 50000))
+            print("Connected to load balancer")
 
-            print(f"Received data from {addr}: {data}")
+            # Send node details to load balancer
+            node_details = {
+                "node_name": self.node_name,
+                "node_IP":  self.node_ip,
+                "node_port": self.node_port,
+                "node_type": "AuthNode"
+            }
+            load_balancer_client.sendall(str(node_details).encode())
+            load_balancer_client.close()  # Close the connection after sending details
+        except:
+            print("Error connecting to load balancer")
 
-            # Authenticate the client
-            self.authenticate_client(conn, addr, data)
+        print("Node details sent to load balancer")
 
-        except Exception as e:
-            print(f"Error in handling client: {str(e)}")
+    def run(self):
+        server_thread = threading.Thread(target=self.start_auth_node)
+        server_thread.start()
+
+        time.sleep(1)  # Wait for server to start
+
+        self.connect_to_load_balancer()
 
 
 if __name__ == "__main__":
-    auth_node = AuthNode(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        ports = auth_node.assign_ports()
-        if ports:
-            load_balancer_port, client_port = ports
-
-            auth_node.connect_to_loadbalancer(
-                "172.27.192.1", client_port)
-            # Now you can use 'client_port' to listen for client connections
-            print(f"Client connections will be accepted on port {client_port}")
-
-    except:
-        print("Error in connecting to the load balancer")
-    finally:
-        auth_node.close()
-        print()
+    auth_node = AuthNode()
+    auth_node.run()

@@ -1,8 +1,10 @@
 import socket
 import threading
+import traceback
+import time
 
 
-class LoadStrapper(socket.socket):
+class LoadStrapper():
     """
     A class representing a load balancer node.
 
@@ -23,103 +25,43 @@ class LoadStrapper(socket.socket):
             load_balance_node.start()
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
         self.lock = threading.Lock()
         self.connected_nodes = {}
         self.connected_clients = {}
+        self.bootstrap_socket = None
 
-    def initialize(self):
-        """
-        Binds the socket to an available port in the range 50000-50010.
-
-        Returns:
-            bool: True if the socket is successfully bound to a port, False otherwise.
-        """
-        host = "172.27.192.1"
+    def bind_server_socket(self, host):
         for port in range(50000, 50011):
             try:
-                self.bind((host, port))
+                self.bootstrap_socket.bind((host, port))
                 print(f"Socket bound to {host}:{port}")
-                return True
+                return port
             except:
-                print(f"Socket bind failed on {host}:{port}")
+                print(f"BootStrap bind failed on {host}:{port}")
 
-        print(f"Unable to bind to any port in range 50000, 50010")
-        return False
-
-    def handle_connections(self, conn, addr):
-        """
-        Handles a new connection to the load balancer.
-
-        Args:
-            conn (socket.socket): The socket object representing the connection.
-            addr (tuple): The address of the connected node.
-
-        Returns:
-            None
-        """
-        while True:
-            try:
-                data = conn.recv(1024).decode("utf-8")
-
-                if not data:
-                    break
-
-                name, node_type, node_purpose, communication_port = data.split(
-                    ":")
-
-                with self.lock:
-                    print(
-                        f"Connection at {addr} has been established with {name}")
-
-                    match node_purpose:
-                        case "REGISTERING_NODE_ADDRESS":
-                            if node_type == "AuthNode":
-                                self.connected_nodes[name] = {
-                                    'type': node_type, 'ip': addr[0], 'port': communication_port}
-                        case "Authenticate":
-                            if node_type == "Client":
-                                # Authenticate the user send them the address of an available auth node
-                                self.connected_clients[name] = {'type': node_type,
-                                                                'address': addr[0], 'port': communication_port}
-
-                                auth_node = next(
-                                    (node for node in self.connected_nodes if self.connected_nodes[node]['type'] == "AuthNode"))
-                                if auth_node:
-                                    auth_node_address = self.get_node_info(
-                                        auth_node)
-                                    response = f"{auth_node}:{auth_node_address}"
-                                    conn.sendall(response.encode("utf-8"))
-                                else:
-                                    print("No auth node available")
-
-            except ConnectionResetError:
-                print(
-                    f"Connection at {addr} has been closed: {name}")
-                conn.close()
-                del self.connected_nodes[name]
-                break
-
-    def start(self):
-        """
-        Starts the load balancer by listening for incoming connections.
-
-        Returns:
-            None
-        """
-        self.listen(5)
-        print("Socket is listening for connections")
+    def start_bootstrap_loadbalancer(self):
+        self.bootstrap_socket = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM)
+        bootstrap_ip = socket.gethostbyname(socket.gethostname())
         try:
-            while True:
-                conn, addr = self.accept()
-                thread = threading.Thread(
-                    target=self.handle_connections, args=(conn, addr))
-                thread.start()
-        except KeyboardInterrupt:
-            print("Load balancer shutting down...")
-        finally:
-            self.close()
+            port = self.bind_server_socket(bootstrap_ip)
+
+        except:
+            print(f"Unable to bind to any port in range 50000, 50010")
+
+        self.bootstrap_socket.listen(5)
+        print(f"Server started on port {port}")
+
+        while True:
+            client_socket, client_address = self.bootstrap_socket.accept()
+            print(f"Received connection from {client_address}")
+            # Handle client connection here
+
+    def run(self):
+        server_thread = threading.Thread(
+            target=self.start_bootstrap_loadbalancer)
+        server_thread.start()
 
     def get_node_info(self, node_name):
         """
@@ -134,9 +76,5 @@ class LoadStrapper(socket.socket):
 
 
 if __name__ == "__main__":
-    load_balance_node = LoadStrapper(socket.AF_INET, socket.SOCK_STREAM)
-    if load_balance_node.initialize():
-        try:
-            load_balance_node.start()
-        except:
-            print("Error in starting the load balancer")
+    bootstrap = LoadStrapper()
+    bootstrap.run()
