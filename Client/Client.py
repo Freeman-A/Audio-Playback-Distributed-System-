@@ -1,26 +1,27 @@
 import socket
 import socket
 import wx
-import time
+import random
 
 
 class Client(socket.socket):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.client_name = f"C{random.randint(1, 10)}"
         self.app = wx.App(False)
-        self.frame = wx.Frame(None, wx.ID_ANY, "Client Node")
+        self.frame = wx.Frame(None, wx.ID_ANY, "Client Node", size=(300, 200))
         self.panel = wx.Panel(self.frame, wx.ID_ANY)
 
-        self.button = wx.Button(self.panel, label="Authenticate", pos=(10, 70))
+        self.button = wx.Button(self.panel, label="Authenticate", pos=(0, 0))
         self.button.Bind(wx.EVT_BUTTON, self.authenticate)
 
         self.frame.Show(True)
         self.app.MainLoop()
 
-    def authenticate(self):
+    def authenticate(self, address):
         try:
-            address = self.connect_to_loadbalancer(
-                "172.27.192.1", "Authenticate")
+            self.connect_to_loadbalancer(
+                address, "Authenticate")
 
             if address:
                 pass
@@ -30,14 +31,17 @@ class Client(socket.socket):
         pass
 
     def initialize(self):
-        host = self.gethostname(self.gethostname())
+        host = socket.gethostbyname(socket.gethostname())
         for port in range(50000, 50011):
             try:
-                self.bind((self.gethostbyname(host), port))
+                self.bind((host, port))
                 print(f"Socket bound to {host}:{port}")
                 return True
             except Exception as e:
                 print(f"Binding failed on {host}:{port}")
+
+        print("Unable to bind to any port in the range 50000-50010")
+        return False
 
     def connect_to_loadbalancer(self, load_balancer_ip, purpose):
         try:

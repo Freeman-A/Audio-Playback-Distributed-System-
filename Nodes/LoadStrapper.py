@@ -77,12 +77,19 @@ class LoadStrapper(socket.socket):
                             if node_type == "AuthNode":
                                 self.connected_nodes[name] = {
                                     'type': node_type, 'address': addr[0], 'port': addr[1]}
+                            if node_type == "Client":
                                 self.connected_clients[name] = {
                                     'type': node_type, 'address': addr[0], 'port': addr[1]}
                         case "Authenticate":
-                            # Authenticate the user send them the address of an available auth node
-                            auth_node = next(
-                                (node for node in self.connected_nodes if self.connected_nodes[node]['type'] == "AuthNode"), None)
+                            if node_type == "Client":
+                                # Authenticate the user send them the address of an available auth node
+                                auth_node = next(
+                                    (node for node in self.connected_nodes if self.connected_nodes[node]['type'] == "AuthNode"), None)
+                                if auth_node:
+                                    response = f"{name}:{self.connected_nodes[auth_node]['address']}:{self.connected_nodes[auth_node]['port']}"
+                                    conn.sendall(response.encode("utf-8"))
+                                else:
+                                    print("No auth node available")
 
             except ConnectionResetError:
                 print(
