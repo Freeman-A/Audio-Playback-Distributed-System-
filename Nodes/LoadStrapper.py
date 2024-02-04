@@ -27,6 +27,7 @@ class LoadStrapper(socket.socket):
         super().__init__(*args, **kwargs)
         self.lock = threading.Lock()
         self.connected_nodes = {}
+        self.connected_clients = {}
 
     def initialize(self):
         """
@@ -65,28 +66,29 @@ class LoadStrapper(socket.socket):
                 if not data:
                     break
 
-                node_name, node_type, node_purpose = data.split(":")
+                name, node_type, node_purpose = data.split(":")
 
                 with self.lock:
                     print(
-                        f"Connection at {addr} has been established with {node_name}")
+                        f"Connection at {addr} has been established with {name}")
 
                     match node_purpose:
                         case "Establish Connection":
-                            self.connected_nodes[node_name] = {
-                                'type': node_type, 'address': addr[0], 'port': addr[1]}
+                            if node_type == "AuthNode":
+                                self.connected_nodes[name] = {
+                                    'type': node_type, 'address': addr[0], 'port': addr[1]}
+                                self.connected_clients[name] = {
+                                    'type': node_type, 'address': addr[0], 'port': addr[1]}
                         case "Authenticate":
-                            pass
-
-                # Send a response message to the connected node
-                response = "Message received"
-                conn.send(response.encode("utf-8"))
+                            # Authenticate the user send them the address of an available auth node
+                            auth_node = next(
+                                (node for node in self.connected_nodes if self.connected_nodes[node]['type'] == "AuthNode"), None)
 
             except ConnectionResetError:
                 print(
-                    f"Connection at {addr} has been closed. Disconnected node: {node_name}")
+                    f"Connection at {addr} has been closed: {name}")
                 conn.close()
-                del self.connected_nodes[node_name]
+                del self.connected_nodes[name]
                 break
 
     def start(self):
