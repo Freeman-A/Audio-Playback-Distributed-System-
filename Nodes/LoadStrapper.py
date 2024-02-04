@@ -65,15 +65,18 @@ class LoadStrapper(socket.socket):
                 if not data:
                     break
 
-                node_name, node_type = data.split(":")
+                node_name, node_type, node_purpose = data.split(":")
 
                 with self.lock:
                     print(
                         f"Connection at {addr} has been established with {node_name}")
-                    self.connected_nodes[node_name] = {
-                        'type': node_type, 'address': addr[0], 'port': addr[1]}
 
-                    print(self.connected_nodes)
+                    match node_purpose:
+                        case "Establish Connection":
+                            self.connected_nodes[node_name] = {
+                                'type': node_type, 'address': addr[0], 'port': addr[1]}
+                        case "Authenticate":
+                            pass
 
                 # Send a response message to the connected node
                 response = "Message received"
@@ -81,7 +84,7 @@ class LoadStrapper(socket.socket):
 
             except ConnectionResetError:
                 print(
-                    f"Connection at {self.connected_nodes[node_name]} has been closed")
+                    f"Connection at {addr} has been closed. Disconnected node: {node_name}")
                 conn.close()
                 del self.connected_nodes[node_name]
                 break

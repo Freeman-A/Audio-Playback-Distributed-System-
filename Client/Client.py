@@ -1,10 +1,26 @@
 import socket
 import socket
+import wx
+import time
 
 
 class Client(socket.socket):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.app = wx.App(False)
+        self.frame = wx.Frame(None, wx.ID_ANY, "Client Node")
+        self.panel = wx.Panel(self.frame, wx.ID_ANY)
+
+        self.button = wx.Button(self.panel, label="Authenticate", pos=(10, 70))
+        self.button.Bind(wx.EVT_BUTTON, self.on_authenticate)
+
+        self.frame.Show(True)
+        self.app.MainLoop()
+
+    def on_authenticate(self, event):
+        username = self.username_text.GetValue()
+        password = self.password_text.GetValue()
+        self.authenticate(username, password)
 
     def initialize(self):
         host = self.gethostname(self.gethostname())
@@ -16,35 +32,32 @@ class Client(socket.socket):
             except Exception as e:
                 print(f"Binding failed on {host}:{port}")
 
-    def connect_to_load_balancer(self, load_balancer_address):
-        self.connect(load_balancer_address)
-        available_authnodes = self.receive_available_authnodes()
-        authnode_address = self.select_authnode(available_authnodes)
-        self.connect_to_authnode(authnode_address)
+    def connect_to_loadbalancer(self, load_balancer_ip, purpose):
+        try:
+            node_type = "Client"
+            purpose = purpose
+            data = f"{self.node_name}:{node_type}:{purpose}"
+            self.connect((load_balancer_ip, 50000))
+            self.sendall(data.encode("utf-8"))
 
-    def receive_available_authnodes(self):
-        # Implement the logic to receive the available authnode names from the load balancer
-        # and return the list of names
-        pass
+            print("Node name successfully sent to Loadstrapper.")
 
-    def select_authnode(self, available_authnodes):
-        # Implement the logic to select an authnode from the available_authnodes list
-        # and return the address of the selected authnode
-        pass
+            self.settimeout(60)
 
-    def connect_to_authnode(self, authnode_address):
-        self.connect(authnode_address)
-        self.register_user()
+            while True:
+                time.sleep(60)
+                print("Alive")
 
-    def register_user(self):
-        # Implement the logic to register a user name and password with the authentication node
-        pass
+        except ConnectionRefusedError:
+            print("Error connecting to Loadstrapper: Connection refused")
+        except Exception as e:
+            print(f"Error connecting to Loadstrapper: {str(e)}")
 
 
 if __name__ == "__main__":
     client = Client(socket.AF_INET, socket.SOCK_STREAM)
     if client.initialize():
         try:
-            client.initialize()
+            client.authenticate("172.27.192.1")
         except:
             print("Client closed")

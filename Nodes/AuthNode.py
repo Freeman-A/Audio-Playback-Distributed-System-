@@ -27,12 +27,11 @@ class AuthNode(socket.socket):
         print("Unable to bind to any port in range 50000, 50010")
         return False
 
-        # need to alter the code to start a thread to connect to the load balancer and close the connection and then start a thread to connect to the auth node and accept messages from the client
-
     def connect_to_loadbalancer(self, load_balancer_ip):
         try:
             node_type = "AuthNode"
-            data = f"{self.node_name}:{node_type}"
+            purpose = "Establish Connection"
+            data = f"{self.node_name}:{node_type}:{purpose}"
             self.connect((load_balancer_ip, 50000))
             self.sendall(data.encode("utf-8"))
 
