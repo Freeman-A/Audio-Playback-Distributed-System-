@@ -73,14 +73,14 @@ class AuthNode(socket.socket):
     def handle_client(self, conn, addr):
         try:
             data = conn.recv(1024).decode("utf-8")
-            
-            if data: 
+
+            if data:
                 purpose, username, password = data.split(":")
-                match purpose: 
+                match purpose:
                     case "login":
-                        
-            
-            
+                        print(f"Received login request from {username}")
+                    case "register":
+                        print(f"Received registration request")
 
             print(f"Received data from {addr}: {data}")
 
