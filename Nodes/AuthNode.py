@@ -24,6 +24,7 @@ class AuthNode():
                 print(f"Socket bind failed on {host}:{port}")
 
     def start_auth_node(self):
+        self.make_user_database()
         try:
             self.server_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
@@ -61,8 +62,9 @@ class AuthNode():
                             authentication_status = self.authenticate_user(
                                 username, password)
 
-                            client_socket.sendall(
-                                authentication_status.encode("utf-8"))
+                            if authentication_status:
+                                client_socket.sendall(
+                                    authentication_status.encode("utf-8"))
 
             except json.JSONDecodeError:
                 print("Error decoding JSON. Empty or invalid message received.")
@@ -86,14 +88,13 @@ class AuthNode():
             with open(file_path, "r") as file:
                 file_content = file.read()
                 if not file_content:
-                    print("User database is empty.")
                     user_data = []
                 else:
                     try:
                         user_data = json.loads(file_content)
                     except json.JSONDecodeError as json_error:
                         print(f"Error decoding JSON: {json_error}")
-                        return "Authentication failed - JSON decoding error"
+                        return "Authentication failed"
 
                 print("User data:", user_data)
 
