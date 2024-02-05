@@ -32,10 +32,34 @@ class Client():
         self.client_socket.sendall(json_data.encode())
 
         auth_node_info = self.client_socket.recv(1024).decode("utf-8")
+        auth_node_info = json.loads(auth_node_info)
 
         self.client_socket.close()
 
+        auth_node_info = ((auth_node_info.get("address"),
+                          auth_node_info.get("port")))
+
         return auth_node_info
+
+    def get_credentials(self, purpose):
+        print("Enter your credentials")
+        username = input("Username: ")
+        password = input("Password: ")
+        credentials = {
+            "username": username,
+            "password": password,
+            "purpose": purpose
+        }
+
+        credentials = json.dumps(credentials)
+
+        return credentials
+
+    def send_credentials(self, credentials):
+        """
+        Sends the credentials to the authentication node.
+        """
+        self.client_socket.sendall(credentials.encode("utf-8"))
 
     def authenticate(self):
         """
@@ -49,47 +73,43 @@ class Client():
                     "Error: Authentication node information not received from the load balancer.")
                 return
 
-            self.client_socket = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
-
             try:
-                auth_node_info = json.loads(auth_node_info)
+                self.client_socket = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM)
 
-                auth_node_ip = auth_node_info.get("address")
-                auth_node_port = auth_node_info.get("port")
+                self.client_socket.connect(
+                    (auth_node_info[0], auth_node_info[1]))
+            except ConnectionRefusedError:
+                print("Error: Connection to the authentication node refused.")
+                return
 
-                try:
-                    self.client_socket.connect((auth_node_ip, auth_node_port))
-                except ConnectionRefusedError:
-                    print("Error: Connection to the authentication node refused.")
-                    return
+            while True:
+                purpose = input("Login or Register: ").lower()
 
-                print("Enter your login credentials: ")
-                username = input("Username: ")
-                password = input("Password: ")
-                credentials = {
-                    "username": username,
-                    "password": password,
-                    "purpose": "AUTHENTICATE"
-                }
+                if purpose in ["login", "register"]:
+                    credentials = self.get_credentials(purpose)
+                    self.send_credentials(credentials)
 
-                credentials = json.dumps(credentials)
-                try:
-                    self.client_socket.sendall(credentials.encode("utf-8"))
-                except BrokenPipeError:
-                    print("Error: Connection to the authentication node was broken.")
-                    return
+                    self.client_socket.settimeout(5)
+                    try:
+                        response = self.client_socket.recv(
+                            1024).decode("utf-8")
+                        print(response)
 
-                self.client_socket.settimeout(5)
-                try:
-                    response = self.client_socket.recv(1024).decode("utf-8")
-                    print(response)
-                except socket.timeout:
-                    print("Error: Timeout while waiting for authentication response.")
-            except json.JSONDecodeError as json_error:
-                print(f"Error decoding JSON: {json_error}")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+                        # Optionally, you can exit the loop after successful authentication
+                        if response.startswith("AUTHORIZED"):
+                            break
+
+                    except socket.timeout:
+                        print(
+                            "Error: Timeout while waiting for authentication response.")
+                else:
+                    print("Invalid choice. Please enter either 'Login' or 'Register'.")
+
+        except json.JSONDecodeError as json_error:
+            print(f"Error decoding JSON: {json_error}")
+        except Exception:
+            traceback.print_exc()
 
     def start(self):
         """

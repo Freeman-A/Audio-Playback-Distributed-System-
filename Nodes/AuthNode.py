@@ -54,17 +54,18 @@ class AuthNode():
 
                     purpose = message.get("purpose")
 
-                    match purpose:
-                        case "AUTHENTICATE":
-                            username = message.get("username")
-                            password = message.get("password")
+                    username = message.get("username")
+                    password = message.get("password")
 
-                            authentication_status = self.authenticate_user(
+                    match purpose:
+                        case "login":
+
+                            validate_credentials_status = self.validate_credentials(
                                 username, password)
 
-                            if authentication_status:
+                            if validate_credentials_status:
                                 client_socket.sendall(
-                                    authentication_status.encode("utf-8"))
+                                    validate_credentials_status.encode("utf-8"))
 
             except json.JSONDecodeError:
                 print("Error decoding JSON. Empty or invalid message received.")
@@ -72,46 +73,29 @@ class AuthNode():
                 print("Error handling client messages", traceback.print_exc())
                 break
 
-    def authenticate_user(self, username, password):
+    def validate_credentials(self, username, password):
         """
         Authenticates the user by checking the username and password against the database.
         """
+        print("here")
         file_path = "data/user_data.json"
-
-        print(f"File path: {file_path}")
-
-        if not os.path.exists(file_path):
-            print("User database not found.")
-            return "Authentication failed"
-
-        try:
+        if os.path.isfile(file_path):
+            print("here2")
             with open(file_path, "r") as file:
-                file_content = file.read()
-                if not file_content:
-                    user_data = []
+                data = json.load(file)
+
+                print("here3")
+            if username in data:
+                print("here4")
+                # If the username exists, check the password
+                if data[username]["password"] == password:
+                    return "AUTHORIZED"
                 else:
-                    try:
-                        user_data = json.loads(file_content)
-                    except json.JSONDecodeError as json_error:
-                        print(f"Error decoding JSON: {json_error}")
-                        return "Authentication failed"
-
-                print("User data:", user_data)
-
-            if any(user["username"] == username and user["password"] == password for user in user_data):
-                return "Authentication successful"
+                    return "UNAUTHORIZED"
             else:
-                # Add the user to the database
-                user_data.append({"username": username, "password": password})
-
-            # Write back to the file outside the 'with' statement to ensure proper closing
-            with open(file_path, "w") as file:
-                json.dump(user_data, file, indent=4)
-
-            return "User added to the database"
-        except Exception as e:
-            print(f"Error: {e}")
-            return "Authentication failed - General error"
+                return "NOT_FOUND"
+        else:
+            return "SERVER ERROR"
 
     def connect_to_load_balancer(self):
         try:
@@ -145,10 +129,14 @@ class AuthNode():
         If the file exists but doesn't contain the admin profile, it adds it.
         """
         user_data = [{"username": "admin", "password": "admin"}]
-
-        file_path = "data/user_data.json"
+        folder_path = "data"
+        file_path = os.path.join(folder_path, "user_data.json")
 
         try:
+            # Check if the folder exists, and create it if not
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+
             if os.path.exists(file_path):
                 # If the file already exists, update existing data
                 with open(file_path, "r") as file:
