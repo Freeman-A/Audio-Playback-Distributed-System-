@@ -76,15 +76,26 @@ class AuthNode():
         """
         file_path = "data/user_data.json"
 
+        print(f"File path: {file_path}")
+
         if not os.path.exists(file_path):
-            print("failed"?)
             print("User database not found.")
             return "Authentication failed"
 
-        with open(file_path, "r") as file:
-            user_data = json.load(file)
+        try:
+            with open(file_path, "r") as file:
+                file_content = file.read()
+                if not file_content:
+                    print("User database is empty.")
+                    user_data = []
+                else:
+                    try:
+                        user_data = json.loads(file_content)
+                    except json.JSONDecodeError as json_error:
+                        print(f"Error decoding JSON: {json_error}")
+                        return "Authentication failed - JSON decoding error"
 
-            print(here)
+                print("User data:", user_data)
 
             if any(user["username"] == username and user["password"] == password for user in user_data):
                 return "Authentication successful"
@@ -92,11 +103,14 @@ class AuthNode():
                 # Add the user to the database
                 user_data.append({"username": username, "password": password})
 
-        # Write back to the file outside the 'with' statement to ensure proper closing
-        with open(file_path, "w") as file:
-            json.dump(user_data, file, indent=4)
+            # Write back to the file outside the 'with' statement to ensure proper closing
+            with open(file_path, "w") as file:
+                json.dump(user_data, file, indent=4)
 
-        return "User added to the database"
+            return "User added to the database"
+        except Exception as e:
+            print(f"Error: {e}")
+            return "Authentication failed - General error"
 
     def connect_to_load_balancer(self):
         try:

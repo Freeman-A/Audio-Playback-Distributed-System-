@@ -44,6 +44,11 @@ class Client():
         try:
             auth_node_info = self.get_auth_node_details()
 
+            if not auth_node_info:
+                print(
+                    "Error: Authentication node information not received from the load balancer.")
+                return
+
             self.client_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
 
@@ -53,7 +58,11 @@ class Client():
                 auth_node_ip = auth_node_info.get("address")
                 auth_node_port = auth_node_info.get("port")
 
-                self.client_socket.connect((auth_node_ip, auth_node_port))
+                try:
+                    self.client_socket.connect((auth_node_ip, auth_node_port))
+                except ConnectionRefusedError:
+                    print("Error: Connection to the authentication node refused.")
+                    return
 
                 print("Enter your login credentials: ")
                 username = input("Username: ")
@@ -65,17 +74,22 @@ class Client():
                 }
 
                 credentials = json.dumps(credentials)
-                self.client_socket.sendall(credentials.encode("utf-8"))
+                try:
+                    self.client_socket.sendall(credentials.encode("utf-8"))
+                except BrokenPipeError:
+                    print("Error: Connection to the authentication node was broken.")
+                    return
 
                 self.client_socket.settimeout(5)
-                response = self.client_socket.recv(1024).decode("utf-8")
-                print(response)
-
-            except Exception as e:
-                traceback.print_exc()
-
+                try:
+                    response = self.client_socket.recv(1024).decode("utf-8")
+                    print(response)
+                except socket.timeout:
+                    print("Error: Timeout while waiting for authentication response.")
+            except json.JSONDecodeError as json_error:
+                print(f"Error decoding JSON: {json_error}")
         except Exception as e:
-            traceback.print_exc()
+            print(f"Unexpected error: {e}")
 
     def start(self):
         """
