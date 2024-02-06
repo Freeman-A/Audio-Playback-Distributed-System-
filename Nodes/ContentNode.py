@@ -22,7 +22,6 @@ class ContentNode:
         if not os.path.exists("data/music"):
             os.makedirs("data/music")
         else:
-
             available_files = os.listdir("data/music")
             return available_files
 
@@ -81,16 +80,26 @@ class ContentNode:
         print(f"Server started on port {self.node_port}")
 
         while True:
-            client_socket, client_address = self.server_socket.accept()
-            print(f"Received connection from {client_address}")
+            try:
+                client_socket, client_address = self.server_socket.accept()
+                print(f"Received connection from {client_address}")
 
-            threading.Thread(target=self.handle_client_request,
-                             args=(client_socket,)).start()
+                threading.Thread(target=self.handle_client_request,
+                                 args=(client_socket,)).start()
+            except Exception as e:
+                print(f"Error accepting client connection: {e}")
 
     def handle_client_request(self, client_socket):
-        print(self.available_files)
-        # Handle client requests and send audio files
-        pass
+        try:
+            print(self.available_files)
+            # Handle client requests and send audio files
+            pass
+        except Exception as e:
+            print(f"Error handling client request: {e}")
+        finally:
+            # Print a message when the thread exits
+            print(f"Closing connection with {client_socket.getpeername()}")
+            client_socket.close()
 
     def run(self):
         server_thread = threading.Thread(target=self.start_content_node)
