@@ -5,6 +5,7 @@ import traceback
 import time
 import os
 import json
+import sqlite3
 
 
 class AuthNode():
@@ -13,6 +14,8 @@ class AuthNode():
         self.node_ip = None
         self.node_port = None
         self.server_socket = None
+        self.user_database = None
+        self.user_cursor = None
 
     def bind_server_socket(self, host):
         for port in range(50000, 50011):
@@ -23,8 +26,33 @@ class AuthNode():
             except:
                 print(f"Socket bind failed on {host}:{port}")
 
+    def connect_to_load_balancer(self):
+        try:
+            load_balancer_client = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            load_balancer_client.settimeout(1)  # Add a timeout of 5 seconds
+            load_balancer_client.connect(("172.27.192.1", 50000))
+            print("Connected to load balancer")
+
+            # Send node details to load balancer
+            node_details = {
+                "node_name": self.node_name,
+                "node_IP":  self.node_ip,
+                "node_port": self.node_port,
+                "node_type": "AuthNode"
+            }
+
+            json_data = json.dumps(node_details)
+
+            load_balancer_client.sendall(json_data.encode("utf-8"))
+            load_balancer_client.close()  # Close the connection after sending details
+        except:
+            print("Error connecting to load balancer")
+
+        print("Node details sent to load balancer")
+
     def start_auth_node(self):
-        self.make_user_database()
+        self.initilize_database()
         try:
             self.server_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
@@ -53,7 +81,6 @@ class AuthNode():
                     message = json.loads(message_str)
 
                     purpose = message.get("purpose")
-
                     username = message.get("username")
                     password = message.get("password")
 
@@ -67,6 +94,17 @@ class AuthNode():
                                 client_socket.sendall(
                                     validate_credentials_status.encode("utf-8"))
 
+                        case "register":
+                            register_user_status = self.register_user(
+                                username, password)
+
+                            if register_user_status:
+                                client_socket.sendall(
+                                    register_user_status.encode("utf-8"))
+
+                        case _:
+                            print("Invalid purpose")
+
             except json.JSONDecodeError:
                 print("Error decoding JSON. Empty or invalid message received.")
             except:
@@ -74,88 +112,51 @@ class AuthNode():
                 break
 
     def validate_credentials(self, username, password):
-        """
-        Authenticates the user by checking the username and password against the database.
-        """
-        print("here")
-        file_path = "data/user_data.json"
-        if os.path.isfile(file_path):
-            print("here2")
-            with open(file_path, "r") as file:
-                data = json.load(file)
+        with sqlite3.connect("data/user_credentials.db") as connection:
+            cursor = connection.cursor()
 
-                print("here3")
-            if username in data:
-                print("here4")
-                # If the username exists, check the password
-                if data[username]["password"] == password:
+            cursor.execute(
+                "SELECT * FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+
+            if user:
+                # Assuming password is the second column
+                stored_password = user[1]
+                if stored_password == password:
                     return "AUTHORIZED"
                 else:
                     return "UNAUTHORIZED"
             else:
-                return "NOT_FOUND"
-        else:
-            return "SERVER ERROR"
+                return "NO_USER_FOUND"
 
-    def connect_to_load_balancer(self):
-        try:
-            load_balancer_client = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
-            load_balancer_client.settimeout(1)  # Add a timeout of 5 seconds
-            load_balancer_client.connect(("172.27.192.1", 50000))
-            print("Connected to load balancer")
+    def register_user(self, username, password):
+        with sqlite3.connect("data/user_credentials.db") as connection:
+            cursor = connection.cursor()
 
-            # Send node details to load balancer
-            node_details = {
-                "node_name": self.node_name,
-                "node_IP":  self.node_ip,
-                "node_port": self.node_port,
-                "node_type": "AuthNode"
-            }
+            cursor.execute(
+                "SELECT * FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
 
-            json_data = json.dumps(node_details)
-
-            load_balancer_client.sendall(json_data.encode("utf-8"))
-            load_balancer_client.close()  # Close the connection after sending details
-        except:
-            print("Error connecting to load balancer")
-
-        print("Node details sent to load balancer")
-
-    def make_user_database(self):
-        """
-        Creates a user database in the form of a json file.
-        If the file already exists, it updates the existing data with the new user data.
-        If the file exists but doesn't contain the admin profile, it adds it.
-        """
-        user_data = [{"username": "admin", "password": "admin"}]
-        folder_path = "data"
-        file_path = os.path.join(folder_path, "user_data.json")
-
-        try:
-            # Check if the folder exists, and create it if not
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
-
-            if os.path.exists(file_path):
-                # If the file already exists, update existing data
-                with open(file_path, "r") as file:
-                    data = json.load(file)
-
-                    # Add admin account if not already in the file
-                    admin_exists = any(
-                        user["username"] == "admin" for user in data)
-                    if not admin_exists:
-                        data.extend(user_data)
-
-                with open(file_path, "w") as file:
-                    json.dump(data, file, indent=4)
+            if user:
+                return "USER_EXISTS"
             else:
-                # If the file doesn't exist, create a new one
-                with open(file_path, "w") as file:
-                    json.dump(user_data, file, indent=4)
-        except Exception as e:
-            print(f"Error: {e}")
+                cursor.execute(
+                    "INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+                connection.commit()
+                return "REGISTERED"
+
+    def initilize_database(self):
+        database_exists = os.path.exists("data/user_credentials.db")
+
+        with sqlite3.connect("data/user_credentials.db") as connection:
+            self.user_database = connection
+            self.user_cursor = connection.cursor()
+
+            if not database_exists:
+                # Create the users table if the database is newly created
+                self.user_cursor.execute(
+                    "CREATE TABLE users (username TEXT, password TEXT)")
+                connection.commit()
 
     def run(self):
         server_thread = threading.Thread(target=self.start_auth_node)

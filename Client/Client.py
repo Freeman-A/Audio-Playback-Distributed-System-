@@ -19,27 +19,33 @@ class Client():
         Connects to the load balancer and sends node details to request authentication node information.
         Returns the authentication node information received from the load balancer.
         """
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect(("172.27.192.1", 50000))
+        try:
+            self.client_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.connect(("172.27.192.1", 50000))
 
-        # Send node details to load balancer
-        client_details = {
-            "node_name": self.client_name,
-            "node_type": "Client",
-            "purpose": "REQUEST_AUTH_NODE"
-        }
-        json_data = json.dumps(client_details)
-        self.client_socket.sendall(json_data.encode())
+            # Send node details to load balancer
+            client_details = {
+                "node_name": self.client_name,
+                "node_type": "Client",
+                "purpose": "REQUEST_AUTH_NODE"
+            }
+            json_data = json.dumps(client_details)
+            self.client_socket.sendall(json_data.encode())
 
-        auth_node_info = self.client_socket.recv(1024).decode("utf-8")
-        auth_node_info = json.loads(auth_node_info)
+            auth_node_info = self.client_socket.recv(1024).decode("utf-8")
+            auth_node_info = json.loads(auth_node_info)
 
-        self.client_socket.close()
+            self.client_socket.close()
 
-        auth_node_info = ((auth_node_info.get("address"),
-                          auth_node_info.get("port")))
+            if auth_node_info:
+                auth_node_info = (auth_node_info.get(
+                    "address"), auth_node_info.get("port"))
 
-        return auth_node_info
+            return auth_node_info
+        except Exception as e:
+            print(f"Error getting authentication node details: {e}")
+            return None
 
     def get_credentials(self, purpose):
         print("Enter your credentials")
@@ -59,7 +65,11 @@ class Client():
         """
         Sends the credentials to the authentication node.
         """
-        self.client_socket.sendall(credentials.encode("utf-8"))
+        try:
+            self.client_socket.sendall(credentials.encode("utf-8"))
+        except ConnectionResetError:
+            print("Error: Connection to the server was forcibly closed.")
+        # Handle the error or exit the program gracefully
 
     def authenticate(self):
         """
@@ -94,7 +104,18 @@ class Client():
                     try:
                         response = self.client_socket.recv(
                             1024).decode("utf-8")
-                        print(response)
+
+                        match response:
+                            case "AUTHORIZED":
+                                print("You have been authorized.")
+                            case "UNAUTHORIZED":
+                                print("Invalid credentials.")
+                            case "USER_EXISTS":
+                                print("User already exists.")
+                            case "REGISTERED":
+                                print("You have been registered.")
+                            case _:
+                                print("Unknown response from server.")
 
                         # Optionally, you can exit the loop after successful authentication
                         if response.startswith("AUTHORIZED"):
