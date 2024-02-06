@@ -18,20 +18,25 @@ class AuthNode():
         self.user_cursor = None
 
     def bind_server_socket(self, host):
-        for port in range(50000, 50011):
+        port_range = range(50000, 50011)
+
+        for port in port_range:
             try:
                 self.server_socket.bind((host, port))
                 print(f"Socket bound to {host}:{port}")
                 return port
-            except:
+            except Exception:
                 print(f"Socket bind failed on {host}:{port}")
+
+        print("Failed to bind to any port in the specified range.")
+        return None
 
     def connect_to_load_balancer(self):
         try:
             load_balancer_client = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
-            load_balancer_client.settimeout(1)  # Add a timeout of 5 seconds
-            load_balancer_client.connect(("172.27.192.1", 50000))
+            load_balancer_client.settimeout(3)
+            load_balancer_client.connect(("172.24.112.1", 50000))
             print("Connected to load balancer")
 
             # Send node details to load balancer
@@ -45,11 +50,12 @@ class AuthNode():
             json_data = json.dumps(node_details)
 
             load_balancer_client.sendall(json_data.encode("utf-8"))
-            load_balancer_client.close()  # Close the connection after sending details
-        except:
-            print("Error connecting to load balancer")
+            load_balancer_client.close()
 
-        print("Node details sent to load balancer")
+            print("Node details sent to load balancer")
+
+        except Exception as e:
+            print(f"Error connecting to load balancer: {e}")
 
     def start_auth_node(self):
         self.initilize_database()
