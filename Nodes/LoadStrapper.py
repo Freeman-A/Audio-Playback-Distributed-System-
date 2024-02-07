@@ -72,7 +72,7 @@ class LoadStrapper():
                     node_type = message.get("node_type")
 
                     match node_type:
-                        case "AuthNode"  "ContentNode":
+                        case "AuthNode", "ContentNode":
                             self.connected_nodes[message.get("node_name")] = {"address": message.get(
                                 "node_IP"), "port": message.get("node_port")}
 

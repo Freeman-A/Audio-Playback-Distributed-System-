@@ -52,7 +52,7 @@ class ContentNode:
                 "node_name": self.node_name,
                 "node_IP":  self.node_ip,
                 "node_port": self.node_port,
-                "node_type": "ConetentNode"
+                "node_type": "ContentNode"
             }
 
             json_data = json.dumps(node_details)
