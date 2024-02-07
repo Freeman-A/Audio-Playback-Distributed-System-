@@ -29,8 +29,10 @@ class LoadStrapper():
 
     def __init__(self):
         self.lock = threading.Lock()
-        self.connected_nodes = {}
-        self.connected_clients = {}
+        self.auth_nodes = {}
+        self.content_nodes = {}
+        self.clients = {}
+        self.node_counter = {"AuthNodes": 0, "ContentNodes": 0}
         self.bootstrap_socket = None
 
     def bind_server_socket(self, host):
@@ -58,11 +60,11 @@ class LoadStrapper():
         while True:
             client_socket, client_address = self.bootstrap_socket.accept()
             # Handle client connection here
-            threading.Thread(target=self.handle_client_messages,
+
+            threading.Thread(target=self.handle_clients,
                              args=(client_socket,)).start()
 
-    def handle_client_messages(self, client_socket):
-
+    def handle_clients(self, client_socket):
         while True:
             try:
                 message_str = client_socket.recv(1024).decode("utf-8")
@@ -71,29 +73,37 @@ class LoadStrapper():
 
                     node_type = message.get("node_type")
 
-                    match node_type:
-                        case "AuthNode", "ContentNode":
-                            self.connected_nodes[message.get("node_name")] = {"address": message.get(
-                                "node_IP"), "port": message.get("node_port")}
+                    if node_type == "AuthNode":
+                        self.auth_nodes[message.get("node_name")] = {"address": message.get(
+                            "node_IP"), "port": message.get("node_port")}
+                        print(
+                            f"Auth Node {message.get('node_name')} connected")
 
-                        case "Client":
-                            self.connected_clients[message.get("node_name")] = {
-                                "address": client_socket.getpeername()[0], "port": client_socket.getpeername()[1]}
+                    elif node_type == "ContentNode":
+                        self.content_nodes[message.get("node_name")] = {"address": message.get(
+                            "node_IP"), "port": message.get("node_port")}
+                        print(
+                            f"Content Node {message.get('node_name')} connected")
 
-                            if message.get("purpose") == "REQUEST_AUTH_NODE":
+                    elif node_type == "Client":
+                        self.clients[message.get("node_name")] = {
+                            "address": client_socket.getpeername()[0], "port": client_socket.getpeername()[1]}
 
-                                if self.connected_nodes:
-                                    # send the address and port of the AuthNode to the client
+                        if message.get("purpose") == "REQUEST_AUTH_NODE":
+
+                            if self.auth_nodes:
+                                if self.node_counter["AuthNodes"] >= 1:
                                     auth_node = random.choice(
-                                        list(self.connected_nodes.values()))
+                                        list(self.auth_nodes.values()))
                                     client_socket.sendall(
                                         json.dumps(auth_node).encode("utf-8"))
-                                else:   # If no AuthNode is available
-                                    client_socket.sendall(
-                                        json.dumps({"error": "No AuthNode available"}).encode("utf-8"))
 
-                        case _:
-                            print("Unknown node type")
+                            else:   # If no AuthNode is available
+                                client_socket.sendall(
+                                    json.dumps({"Error": "No AuthNode available"}).encode("utf-8"))
+
+                    else:
+                        print("Unknown node type")
 
             except:
                 traceback.print_exc()
@@ -104,7 +114,7 @@ class LoadStrapper():
             target=self.start_bootstrap_loadbalancer)
         server_thread.start()
 
-    def get_node_info(self, node_name):
+    def get_node_info(self, node_name, node_type):
         """
         Get the address and port of the node with the given name.
         Args:
@@ -112,8 +122,12 @@ class LoadStrapper():
         Returns:
             tuple: The address and port of the node.
         """
-        with self.lock:
-            return self.connected_nodes.get(node_name, None)
+        if node_type == "AuthNode":
+            return self.auth_nodes.get(node_name)
+        elif node_type == "ContentNode":
+            return self.content_nodes.get(node_name)
+        else:
+            return None
 
 
 if __name__ == "__main__":

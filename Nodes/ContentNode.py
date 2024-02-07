@@ -15,10 +15,6 @@ class ContentNode:
         self.available_files = self.get_available_files()
 
     def get_available_files(self):
-        # Get the list of available audio files
-        # You can implement your own logic here
-        # For example, you can read the files from a directory
-        # check if directory exists and if the file in the directory is exists
         if not os.path.exists("data/music"):
             os.makedirs("data/music")
         else:
