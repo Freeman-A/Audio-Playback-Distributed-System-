@@ -58,7 +58,7 @@ class AuthNode():
             print(f"Error connecting to load balancer: {e}")
 
     def start_auth_node(self):
-        self.initilize_database()
+        self.initialize_database()
         try:
             self.server_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
@@ -151,7 +151,7 @@ class AuthNode():
                 connection.commit()
                 return "REGISTERED"
 
-    def initilize_database(self):
+    def initialize_database(self):
         database_exists = os.path.exists("data/user_credentials.db")
 
         with sqlite3.connect("data/user_credentials.db") as connection:
