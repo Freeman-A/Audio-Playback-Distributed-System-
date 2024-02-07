@@ -62,7 +62,7 @@ class LoadStrapper():
             # Handle client connection here
 
             threading.Thread(target=self.handle_clients,
-                             args=(client_socket,)).start()
+                             args=(client_socket,)).start()  # Start a new thread to handle the client
 
     def handle_clients(self, client_socket):
         while True:
@@ -71,43 +71,46 @@ class LoadStrapper():
                 if message_str:
                     message = json.loads(message_str)
 
-                    node_type = message.get("node_type")
+                    node_tracker = self.tracker(message.get("node_type"), message.get("node_name"), (message.get("node_IP"),
+                                                                                                     message.get("node_port")))
 
-                    if node_type == "AuthNode":
-                        self.auth_nodes[message.get("node_name")] = {"address": message.get(
-                            "node_IP"), "port": message.get("node_port")}
-                        print(
-                            f"Auth Node {message.get('node_name')} connected")
-
-                    elif node_type == "ContentNode":
-                        self.content_nodes[message.get("node_name")] = {"address": message.get(
-                            "node_IP"), "port": message.get("node_port")}
-                        print(
-                            f"Content Node {message.get('node_name')} connected")
-
-                    elif node_type == "Client":
-                        self.clients[message.get("node_name")] = {
-                            "address": client_socket.getpeername()[0], "port": client_socket.getpeername()[1]}
+                    if node_tracker != False:
 
                         if message.get("purpose") == "REQUEST_AUTH_NODE":
-
-                            if self.auth_nodes:
-                                if self.node_counter["AuthNodes"] >= 1:
-                                    auth_node = random.choice(
-                                        list(self.auth_nodes.values()))
-                                    client_socket.sendall(
-                                        json.dumps(auth_node).encode("utf-8"))
-
-                            else:   # If no AuthNode is available
+                            if self.node_counter["AuthNodes"] > 0:
+                                auth_node = random.choice(
+                                    list(self.auth_nodes.values()))
                                 client_socket.sendall(
-                                    json.dumps({"Error": "No AuthNode available"}).encode("utf-8"))
+                                    json.dumps(auth_node).encode("utf-8"))
+                            else:
+                                client_socket.sendall(
+                                    json.dumps({"error": "No authentication nodes available"}).encode("utf-8"))
 
-                    else:
-                        print("Unknown node type")
+                        elif message.get("purpose") == "REQUEST_CONTENT_NODE":
+                            if self.node_counter["ContentNodes"] > 0:
+                                content_node = random.choice(
+                                    list(self.content_nodes.values()))
+                                client_socket.sendall(
+                                    json.dumps(content_node).encode("utf-8"))
+                            else:
+                                client_socket.sendall(
+                                    json.dumps({"error": "No content nodes available"}).encode("utf-8"))
 
-            except:
+            except Exception:
                 traceback.print_exc()
-                break
+
+    def tracker(self, node_type, node_name, node_address):
+        match node_type:
+            case "AuthNode":
+                self.auth_nodes[node_name] = node_address
+                self.node_counter["AuthNodes"] += 1
+            case "ContentNode":
+                self.content_nodes[node_name] = node_address
+                self.node_counter["ContentNodes"] += 1
+            case "Client":
+                self.clients[node_name] = node_address
+            case _:
+                return False
 
     def run(self):
         server_thread = threading.Thread(
