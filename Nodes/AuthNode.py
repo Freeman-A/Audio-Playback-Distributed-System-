@@ -31,12 +31,12 @@ class AuthNode():
         print("Failed to bind to any port in the specified range.")
         return None
 
-    def connect_to_load_balancer(self):
+    def connect_to_bootstrapper(self):
         try:
-            load_balancer_client = socket.socket(
+            bootstrapper_client = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
-            load_balancer_client.settimeout(3)
-            load_balancer_client.connect(("172.24.112.1", 50000))
+            bootstrapper_client.settimeout(3)
+            bootstrapper_client.connect(("172.24.112.1", 50000))
             print("Connected to load balancer")
 
             # Send node details to load balancer
@@ -49,8 +49,8 @@ class AuthNode():
 
             json_data = json.dumps(node_details)
 
-            load_balancer_client.sendall(json_data.encode("utf-8"))
-            load_balancer_client.close()
+            bootstrapper_client.sendall(json_data.encode("utf-8"))
+            bootstrapper_client.close()
 
             print("Node details sent to load balancer")
 
@@ -58,7 +58,7 @@ class AuthNode():
             print(f"Error connecting to load balancer: {e}")
 
     def start_auth_node(self):
-        self.initialize_database()
+        self.initilize_database()
         try:
             self.server_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
@@ -114,8 +114,7 @@ class AuthNode():
             except json.JSONDecodeError:
                 print("Error decoding JSON. Empty or invalid message received.")
             except:
-                print("Error handling client messages", traceback.print_exc())
-                break
+                print(f"Client disconnected: {username}")
 
     def validate_credentials(self, username, password):
         with sqlite3.connect("data/user_credentials.db") as connection:
@@ -151,7 +150,7 @@ class AuthNode():
                 connection.commit()
                 return "REGISTERED"
 
-    def initialize_database(self):
+    def initilize_database(self):
         database_exists = os.path.exists("data/user_credentials.db")
 
         with sqlite3.connect("data/user_credentials.db") as connection:
@@ -170,7 +169,7 @@ class AuthNode():
 
         time.sleep(1)  # Wait for server to start
 
-        self.connect_to_load_balancer()
+        self.connect_to_bootstrapper()
 
         server_thread.join()
 
