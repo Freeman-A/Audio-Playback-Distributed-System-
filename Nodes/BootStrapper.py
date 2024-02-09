@@ -58,6 +58,8 @@ class BootStrapper():
 
         while True:
             client_socket, client_address = self.bootstrap_socket.accept()
+
+            print(f"Received connection from {client_address}")
             # Handle client connection here
             threading.Thread(target=self.handle_client_messages,
                              args=(client_socket,)).start()
@@ -107,10 +109,34 @@ class BootStrapper():
                 traceback.print_exc()
                 break
 
+    def service_node_checker(self):
+        while True:
+            time.sleep(5)
+
+            # check if the node counts are below the threshold and send a warning message
+            # if the node counts are below the threshold execute the programs to start the nodes
+            if self.node_counter["AuthNodes"] < 1 and self.node_counter["ContentNodes"] < 1:
+                print("Warning: No Nodes available - Services Offline")
+                print("Booting up nodes")
+
+                if self.node_counter["AuthNodes"] < 1:
+                    print("Booting up AuthNodes")
+                    # execute the program to start the AuthNodes
+
+                if self.node_counter["ContentNodes"] < 1:
+                    print("Booting up ContentNodes")
+                    # execute the program to start the ContentNodes
+
+            else:
+                print("Services running")
+                print(f"AuthNodes: {self.node_counter['AuthNodes']}")
+                print(f"ContentNodes: {self.node_counter['ContentNodes']}")
+
     def run(self):
-        server_thread = threading.Thread(
-            target=self.start_bootstrap)
-        server_thread.start()
+        threading.Thread(target=self.start_bootstrap).start()
+
+        threading.Thread(
+            target=self.service_node_checker).start()
 
     def get_node_info(self, node_name):
         """
