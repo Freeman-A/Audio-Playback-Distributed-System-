@@ -120,7 +120,6 @@ class BootStrapper():
 
     def service_node_checker(self):
         while True:
-            time.sleep(60)
 
             # check if the node counts are below the threshold and send a warning message
             # if the node counts are below the threshold execute the programs to start the nodes
@@ -144,6 +143,8 @@ class BootStrapper():
                 print("Services running")
                 print(f"AuthNodes: {self.node_counter['AuthNodes']}")
                 print(f"ContentNodes: {self.node_counter['ContentNodes']}")
+
+            time.sleep(60)
 
     def run(self):
         threading.Thread(target=self.start_bootstrap).start()
