@@ -1,6 +1,7 @@
 import socket
 import threading
 import traceback
+import subprocess
 import random
 import time
 import json
@@ -109,9 +110,17 @@ class BootStrapper():
                 traceback.print_exc()
                 break
 
+    def start_node(self, node_path):
+        try:
+            subprocess.Popen(["python", node_path])
+
+            time.sleep(5)
+        except subprocess.CalledProcessError as e:
+            print(f"Error starting {node_path}: {e}")
+
     def service_node_checker(self):
         while True:
-            time.sleep(5)
+            time.sleep(60)
 
             # check if the node counts are below the threshold and send a warning message
             # if the node counts are below the threshold execute the programs to start the nodes
@@ -121,11 +130,15 @@ class BootStrapper():
 
                 if self.node_counter["AuthNodes"] < 1:
                     print("Booting up AuthNodes")
-                    # execute the program to start the AuthNodes
+                    file_location = "nodes/AuthNode.py"
+
+                    self.start_node(file_location)
 
                 if self.node_counter["ContentNodes"] < 1:
                     print("Booting up ContentNodes")
-                    # execute the program to start the ContentNodes
+                    file_location = "nodes/ContentNode.py"
+
+                    self.start_node(file_location)
 
             else:
                 print("Services running")
