@@ -85,9 +85,25 @@ class ContentNode:
             except Exception as e:
                 print(f"Error accepting client connection: {e}")
 
+    def recive_client_messages(self, client_socket):
+        while True:
+            try:
+                client_request = client_socket.recv(1024).decode("utf-8")
+                return client_request
+
+            except Exception as e:
+                print(f"Error receiving client messages: {e}")
+                return
+
     def handle_client_request(self, client_socket):
         try:
-            print(self.available_files)
+            client_message = self.recive_client_messages(client_socket)
+
+            if client_message == "REQUEST_FILES":
+                # Send available files to client
+                json_data = json.dumps(self.available_files)
+                client_socket.sendall(json_data.encode("utf-8"))
+
             # Handle client requests and send audio files
             pass
         except Exception as e:

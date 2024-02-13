@@ -102,6 +102,16 @@ class BootStrapper():
                             else:   # If no AuthNode is available
                                 client_socket.sendall(
                                     json.dumps({"error": "No AuthNode available"}).encode("utf-8"))
+                        if message.get("purpose") == "REQUEST_CONTENT_NODE":
+
+                            if self.node_counter["ContentNodes"] > 0:
+                                content_node = random.choice(
+                                    list(self.content_nodes.values()))
+                                client_socket.sendall(
+                                    json.dumps(content_node).encode("utf-8"))
+                            else:   # If no ContentNode is available
+                                client_socket.sendall(
+                                    json.dumps({"error": "No ContentNode available"}).encode("utf-8"))
 
                     else:
                         print("Invalid node type")

@@ -122,12 +122,10 @@ class Client():
                         print("Please try again.")
                         credentials = self.get_credentials("login")
                         self.send_credentials(credentials)
-
                     case "USER_EXISTS":
-                        print("User already exists.")
+                        print("User already exists \n Try again.")
                         credentials = self.get_credentials("register")
                         self.send_credentials(credentials)
-
                     case "REGISTERED":
                         print("You have been registered.")
                         print("Please login to continue.")
@@ -147,12 +145,48 @@ class Client():
             print(f"Error authenticating: {e}")
             traceback.print_exc()
 
+    def recive_available_music(self):
+        """
+        Recives the files from the content node.
+        """
+        try:
+            content_node_info = self.get_node_details("REQUEST_CONTENT_NODE")
+            try:
+                self.client_socket = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM)
+
+                self.client_socket.connect(
+                    (content_node_info[0], content_node_info[1]))
+            except ConnectionRefusedError:
+                print("Error: Connection to the content node refused.")
+                return
+
+            self.client_socket.sendall("REQUEST_FILES".encode("utf-8"))
+
+            files = self.client_socket.recv(1024).decode("utf-8")
+            files = json.loads(files)
+
+            print(files)
+
+        except Exception as e:
+            print(f"Error receiving files: {e}")
+            traceback.print_exc()
+
     def start(self):
         """
         Starts the authentication process in a separate thread.
         """
-        threading.Thread(
-            target=self.authenticate).start()
+        self.authenticate()
+
+        try:
+            if self.authenticated == True:
+                print("Loggin Successful")
+                self.recive_available_music()
+
+        except:
+            print("Error: Authentication failed.")
+            traceback.print_exc()
+            return
 
 
 if __name__ == "__main__":
