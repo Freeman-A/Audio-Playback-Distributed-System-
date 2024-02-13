@@ -166,7 +166,8 @@ class Client():
             files = self.client_socket.recv(1024).decode("utf-8")
             files = json.loads(files)
 
-            print(files)
+            for file in files:
+                print(file)
 
         except Exception as e:
             print(f"Error receiving files: {e}")
