@@ -234,6 +234,12 @@ class Client():
                         # Play the temporary WAV file
                 self.play_wav(temp_wav_path)
 
+                # ask the user if they want to play another song
+                play_another = input(
+                    "Do you want to play another song? (yes/no): ")
+                if play_another.lower() == "yes":
+                    self.handle_music_request()
+
             except Exception as e:
                 print(f"Error handling music request: {e}")
                 traceback.print_exc()
