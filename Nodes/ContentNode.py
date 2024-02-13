@@ -103,6 +103,10 @@ class ContentNode:
                 # Send available files to client
                 json_data = json.dumps(self.available_files)
                 client_socket.sendall(json_data.encode("utf-8"))
+            if client_message == "SONG_REQUEST":
+                # Send requested song to client
+
+                pass
 
             # Handle client requests and send audio files
             pass

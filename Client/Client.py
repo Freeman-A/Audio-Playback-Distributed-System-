@@ -181,15 +181,14 @@ class Client():
         Handles the music request from the user.
         """
         try:
-            music_request = input(
+            song_request = input(
                 "Enter the name of the song you want to download: ")
-            self.client_socket.sendall(music_request.encode("utf-8"))
+
+            song_request = json.dumps({"SONG_REQUEST": song_request})
+
+            self.client_socket.sendall(song_request.encode("utf-8"))
 
             music = self.client_socket.recv(1024).decode("utf-8")
-
-            if music:
-                with open(f"{music_request}.mp3", "wb") as file:
-                    file.write(music)
 
         except Exception as e:
             print(f"Error handling music request: {e}")
