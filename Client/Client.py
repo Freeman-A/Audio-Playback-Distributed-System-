@@ -1,5 +1,6 @@
 import socket
 import random
+import threading
 import traceback
 import json
 import time
@@ -99,34 +100,42 @@ class Client():
             print("Error: Connection to the server was forcibly closed.")
         # Handle the error or exit the program gracefully
 
+    def connect_to_auth_node(self):
+        self.get_node_details("REQUEST_AUTH_NODE")
+        try:
+            self.client_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.connect(
+                (self.auth_node_info[0], self.auth_node_info[1]))
+
+            if self.auth_node_info:
+                self.authenticate()
+        except ConnectionRefusedError:
+            print("Error: Connection to the authentication node refused.")
+            return
+
     def authenticate(self):
         """
         Connects to the authentication node using the authentication node information received from the bootstrapper.
         """
-        try:
-            self.get_node_details("REQUEST_AUTH_NODE")
 
-            try:
-                self.client_socket = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM)
+        purpose = self.get_purpose()
+        credentials = self.get_credentials(purpose)
+        self.send_credentials(credentials)
 
-                self.client_socket.connect(
-                    (self.auth_node_info[0], self.auth_node_info[1]))
-            except ConnectionRefusedError:
-                print("Error: Connection to the authentication node refused.")
-                return
+        self.recive_authentication_status()
 
-            purpose = self.get_purpose()
-            credentials = self.get_credentials(purpose)
-            self.send_credentials(credentials)
-
+    def recive_authentication_status(self):
+        while True:
             try:
                 response = self.client_socket.recv(
                     1024).decode("utf-8")
 
+                print(response)
                 match response:
                     case "AUTHORIZED":
                         self.authenticated = True
+                        return True
                     case "UNAUTHORIZED":
                         print("Invalid credentials.")
                         print("Please try again.")
@@ -141,19 +150,16 @@ class Client():
                         print("Please login to continue.")
                         credentials = self.get_credentials("login")
                         self.send_credentials(credentials)
-
                     case _:
                         print("Unknown response from server.")
                         print("Please try again.")
-                        self.get_purpose()
+                        purpose = self.get_purpose()
                         credentials = self.get_credentials(purpose)
                         self.send_credentials(credentials)
+
             except ConnectionResetError:
                 print("Error: Connection to the server was forcibly closed.")
                 return
-
-        except Exception:
-            print(f"Error authenticating")
 
     def recive_available_music(self):
         """
@@ -226,7 +232,7 @@ class Client():
         if not os.path.exists("bin"):
             os.makedirs("bin")
 
-        self.authenticate()
+        self.connect_to_auth_node()
 
         try:
             if self.authenticated == True:
