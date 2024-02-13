@@ -5,6 +5,7 @@ import traceback
 import json
 import time
 import os
+import playsound
 
 
 class Client():
@@ -222,11 +223,30 @@ class Client():
 
                 self.client_socket.sendall(message.encode("utf-8"))
 
+                # Write the WAV data to a temporary file in the "bin" folder
+                temp_wav_path = os.path.join("bin", "temp.wav")
+                with open(temp_wav_path, 'wb') as temp_wav_file:
+                    while True:
+                        wav_data_chunk = self.client_socket.recv(4096)
+                        if not wav_data_chunk:
+                            break
+                        temp_wav_file.write(wav_data_chunk)
+                        # Play the temporary WAV file
+                self.play_wav(temp_wav_path)
+
             except Exception as e:
                 print(f"Error handling music request: {e}")
                 traceback.print_exc()
         except:
             print("Error: Connection to the server was forcibly closed.")
+
+    def play_wav(self, wav_path):
+        print(f"Playing {wav_path}")
+        playsound.playsound(wav_path)
+        # Delete the temporary WAV file when done
+        # return back to the function that called it
+        os.remove(wav_path)
+        return True
 
     def start(self):
         """

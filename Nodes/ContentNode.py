@@ -111,7 +111,16 @@ class ContentNode:
                 song_name = client_message.get("SONG_NAME")
 
                 if song_name in self.available_files:
+                    audio_file_path = os.path.join("data", "music", song_name)
+
+                    with open(audio_file_path, 'rb') as audio_file:
+                        audio_data = audio_file.read()
+
+                    client_socket.sendall(audio_data)
+
+                if song_name in self.available_files:
                     pass
+
         except Exception as e:
             print(f"Error handling client request: {e}")
         finally:
