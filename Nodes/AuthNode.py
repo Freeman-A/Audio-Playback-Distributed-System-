@@ -114,7 +114,9 @@ class AuthNode():
             except json.JSONDecodeError:
                 print("Error decoding JSON. Empty or invalid message received.")
             except:
-                print(f"Client disconnected: {username}")
+                print(
+                    f"Client disconnected from {client_socket.getpeername()}")
+                return
 
     def validate_credentials(self, username, password):
         with sqlite3.connect("data/user_credentials.db") as connection:

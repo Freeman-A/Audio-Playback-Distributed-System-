@@ -44,9 +44,12 @@ class Client():
 
                 if node_info:
                     if purpose == "REQUEST_CONTENT_NODE":
-                        self.content_node_info = (node_info.get(
-                            "address"), node_info.get("port"))
-                    return (node_info.get("address"), node_info.get("port"))
+                        self.content_node_info = (
+                            node_info["address"], node_info["port"])
+                    elif purpose == "REQUEST_AUTH_NODE":
+                        self.auth_node_info = (
+                            node_info["address"], node_info["port"])
+                return
 
             except Exception as e:
                 print(
@@ -163,7 +166,7 @@ class Client():
                     socket.AF_INET, socket.SOCK_STREAM)
 
                 self.client_socket.connect(
-                    (content_node_info[0], content_node_info[1]))
+                    (self.content_node_info[0], self.content_node_info[1]))
             except ConnectionRefusedError:
                 print("Error: Connection to the content node refused.")
                 return
