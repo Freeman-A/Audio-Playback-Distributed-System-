@@ -86,8 +86,6 @@ class AuthNode():
                 if message_str:
                     message = json.loads(message_str)
 
-                    print(message)
-
                     purpose = message.get("purpose")
                     username = message.get("username")
                     password = message.get("password")

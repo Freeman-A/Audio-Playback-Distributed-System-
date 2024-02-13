@@ -108,8 +108,7 @@ class Client():
             self.client_socket.connect(
                 (self.auth_node_info[0], self.auth_node_info[1]))
 
-            if self.auth_node_info:
-                self.authenticate()
+            return True
         except ConnectionRefusedError:
             print("Error: Connection to the authentication node refused.")
             return
@@ -119,11 +118,17 @@ class Client():
         Connects to the authentication node using the authentication node information received from the bootstrapper.
         """
 
-        purpose = self.get_purpose()
-        credentials = self.get_credentials(purpose)
-        self.send_credentials(credentials)
+        if self.connect_to_auth_node():
 
-        self.recive_authentication_status()
+            purpose = self.get_purpose()
+            credentials = self.get_credentials(purpose)
+            self.send_credentials(credentials)
+
+            self.recive_authentication_status()
+
+            self.client_socket.close()
+
+            return
 
     def recive_authentication_status(self):
         while True:
@@ -131,7 +136,6 @@ class Client():
                 response = self.client_socket.recv(
                     1024).decode("utf-8")
 
-                print(response)
                 match response:
                     case "AUTHORIZED":
                         self.authenticated = True
@@ -232,7 +236,7 @@ class Client():
         if not os.path.exists("bin"):
             os.makedirs("bin")
 
-        self.connect_to_auth_node()
+        self.authenticate()
 
         try:
             if self.authenticated == True:
