@@ -60,7 +60,6 @@ class BootStrapper():
         while True:
             client_socket, client_address = self.bootstrap_socket.accept()
 
-            print(f"Received connection from {client_address}")
             # Handle client connection here
             threading.Thread(target=self.handle_client_messages,
                              args=(client_socket,)).start()
@@ -77,6 +76,8 @@ class BootStrapper():
                     node_name = message.get("node_name")
 
                     if node_type == "AuthNode":
+                        print("AuthNode connected from ",
+                              client_socket.getpeername())
                         with self.lock:
                             self.auth_nodes[node_name] = {
                                 "address": message.get("node_IP"),
@@ -84,6 +85,8 @@ class BootStrapper():
                             }
                             self.node_counter["AuthNodes"] += 1
                     elif node_type == "ContentNode":
+                        print("ContentNode connected from ",
+                              client_socket.getpeername())
                         with self.lock:
                             self.content_nodes[node_name] = {
                                 "address": message.get("node_IP"),
@@ -92,7 +95,10 @@ class BootStrapper():
                             self.node_counter["ContentNodes"] += 1
 
                     elif node_type == "Client":
+                        print("Client connected from ",
+                              client_socket.getpeername())
                         if message.get("purpose") == "REQUEST_AUTH_NODE":
+                            print("Client requesting AuthNode")
 
                             if self.node_counter["AuthNodes"] > 0:
                                 auth_node = random.choice(
@@ -103,6 +109,7 @@ class BootStrapper():
                                 client_socket.sendall(
                                     json.dumps({"error": "No AuthNode available"}).encode("utf-8"))
                         if message.get("purpose") == "REQUEST_CONTENT_NODE":
+                            print("Client requesting ContentNode")
 
                             if self.node_counter["ContentNodes"] > 0:
                                 content_node = random.choice(

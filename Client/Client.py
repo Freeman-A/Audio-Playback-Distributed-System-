@@ -166,11 +166,33 @@ class Client():
             files = self.client_socket.recv(1024).decode("utf-8")
             files = json.loads(files)
 
+            print("Available music")
             for file in files:
                 print(file)
 
+            self.client_socket.close()
+
         except Exception as e:
             print(f"Error receiving files: {e}")
+            traceback.print_exc()
+
+    def handle_music_request(self):
+        """
+        Handles the music request from the user.
+        """
+        try:
+            music_request = input(
+                "Enter the name of the song you want to download: ")
+            self.client_socket.sendall(music_request.encode("utf-8"))
+
+            music = self.client_socket.recv(1024).decode("utf-8")
+
+            if music:
+                with open(f"{music_request}.mp3", "wb") as file:
+                    file.write(music)
+
+        except Exception as e:
+            print(f"Error handling music request: {e}")
             traceback.print_exc()
 
     def start(self):
@@ -181,8 +203,10 @@ class Client():
 
         try:
             if self.authenticated == True:
-                print("Loggin Successful")
+                print(
+                    """--------------------------------\nLoggin Successful\n--------------------------------""")
                 self.recive_available_music()
+                self.handle_music_request()
 
         except:
             print("Error: Authentication failed.")
