@@ -17,6 +17,7 @@ class ContentNode:
     def get_available_files(self):
         if not os.path.exists("data/music"):
             os.makedirs("data/music")
+            return "No files available in the music directory."
         else:
             available_files = os.listdir("data/music")
             return available_files
@@ -98,18 +99,19 @@ class ContentNode:
     def handle_client_request(self, client_socket):
         try:
             client_message = self.recive_client_messages(client_socket)
+            client_message = json.loads(client_message)
+            request_type = client_message.get("REQUEST_TYPE")
 
-            if client_message == "REQUEST_FILES":
+            if request_type == "REQUEST_FILES":
                 # Send available files to client
                 json_data = json.dumps(self.available_files)
                 client_socket.sendall(json_data.encode("utf-8"))
-            if client_message == "SONG_REQUEST":
-                # Send requested song to client
+            if request_type == "SONG_REQUEST":
 
-                pass
+                song_name = client_message.get("SONG_NAME")
 
-            # Handle client requests and send audio files
-            pass
+                if song_name in self.available_files:
+                    pass
         except Exception as e:
             print(f"Error handling client request: {e}")
         finally:

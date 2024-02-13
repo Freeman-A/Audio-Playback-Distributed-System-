@@ -1,9 +1,9 @@
 import socket
 import random
-import threading
 import traceback
-import time
 import json
+import time
+import os
 
 
 class Client():
@@ -11,44 +11,51 @@ class Client():
         """
         Initializes a Client object.
         """
-        self.client_name = f"Client{random.random()}"
         self.client_socket = None
         self.authenticated = False
+        self.content_node_info = None
+        self.auth_node_info = None
 
-    def get_node_details(self, purpose):
+    def get_node_details(self, purpose, max_retries=3, retry_delay=3):
         """
         Connects to the bootstrapper and sends node details to request authentication node information.
         Returns the authentication node information received from the bootstrapper.
+        Retries the connection if it fails.
         """
-        try:
-            self.client_socket = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
-            self.client_socket.connect(("172.24.112.1", 50000))
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.client_socket = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM)
+                self.client_socket.connect(("172.24.112.1", 50000))
 
-            # Send node details to bootstrapper
-            client_details = {
-                "node_name": self.client_name,
-                "node_type": "Client",
-                "purpose": purpose
-            }
+                # Send node details to bootstrapper
+                client_details = {
+                    "node_type": "Client",
+                    "purpose": purpose
+                }
 
-            json_data = json.dumps(client_details)
-            self.client_socket.sendall(json_data.encode())
+                json_data = json.dumps(client_details)
+                self.client_socket.sendall(json_data.encode())
 
-            node_info = self.client_socket.recv(1024).decode("utf-8")
-            node_info = json.loads(node_info)
+                node_info = self.client_socket.recv(1024).decode("utf-8")
+                node_info = json.loads(node_info)
 
-            self.client_socket.close()
+                self.client_socket.close()
 
-            if node_info:
-                node_info = (node_info.get(
-                    "address"), node_info.get("port"))
+                if node_info:
+                    if purpose == "REQUEST_CONTENT_NODE":
+                        self.content_node_info = (node_info.get(
+                            "address"), node_info.get("port"))
+                    return (node_info.get("address"), node_info.get("port"))
 
-                return node_info
+            except Exception as e:
+                print(
+                    f"Error getting authentication node details (Attempt {attempt}): {e}")
+                time.sleep(retry_delay)
 
-        except Exception as e:
-            print(f"Error getting authentication node details: {e}")
-            return
+        print(
+            f"Failed to get authentication node details after {max_retries} attempts.")
+        return None
 
     def get_credentials(self, purpose):
 
@@ -94,14 +101,14 @@ class Client():
         Connects to the authentication node using the authentication node information received from the bootstrapper.
         """
         try:
-            auth_node_info = self.get_node_details("REQUEST_AUTH_NODE")
+            self.get_node_details("REQUEST_AUTH_NODE")
 
             try:
                 self.client_socket = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM)
 
                 self.client_socket.connect(
-                    (auth_node_info[0], auth_node_info[1]))
+                    (self.auth_node_info[0], self.auth_node_info[1]))
             except ConnectionRefusedError:
                 print("Error: Connection to the authentication node refused.")
                 return
@@ -140,10 +147,10 @@ class Client():
                         self.send_credentials(credentials)
             except ConnectionResetError:
                 print("Error: Connection to the server was forcibly closed.")
+                return
 
-        except Exception as e:
-            print(f"Error authenticating: {e}")
-            traceback.print_exc()
+        except Exception:
+            print(f"Error authenticating")
 
     def recive_available_music(self):
         """
@@ -161,7 +168,11 @@ class Client():
                 print("Error: Connection to the content node refused.")
                 return
 
-            self.client_socket.sendall("REQUEST_FILES".encode("utf-8"))
+            message = json.dumps({
+                "REQUEST_TYPE": "REQUEST_FILES"
+            })
+
+            self.client_socket.sendall(message.encode("utf-8"))
 
             files = self.client_socket.recv(1024).decode("utf-8")
             files = json.loads(files)
@@ -181,23 +192,37 @@ class Client():
         Handles the music request from the user.
         """
         try:
-            song_request = input(
-                "Enter the name of the song you want to download: ")
+            self.client_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
 
-            song_request = json.dumps({"SONG_REQUEST": song_request})
+            self.client_socket.connect(
+                (self.content_node_info[0], self.content_node_info[1]))
 
-            self.client_socket.sendall(song_request.encode("utf-8"))
+            try:
+                song_request = input(
+                    "Enter the name of the song you wish to play: ")
 
-            music = self.client_socket.recv(1024).decode("utf-8")
+                message = json.dumps({
+                    "REQUEST_TYPE": "SONG_REQUEST",
+                    "SONG_NAME": song_request
+                })
 
-        except Exception as e:
-            print(f"Error handling music request: {e}")
-            traceback.print_exc()
+                self.client_socket.sendall(message.encode("utf-8"))
+
+            except Exception as e:
+                print(f"Error handling music request: {e}")
+                traceback.print_exc()
+        except:
+            print("Error: Connection to the server was forcibly closed.")
 
     def start(self):
         """
         Starts the authentication process in a separate thread.
         """
+        # check if there is not a bin directory to temporarily store the music
+        if not os.path.exists("bin"):
+            os.makedirs("bin")
+
         self.authenticate()
 
         try:
@@ -209,7 +234,6 @@ class Client():
 
         except:
             print("Error: Authentication failed.")
-            traceback.print_exc()
             return
 
 
