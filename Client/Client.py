@@ -201,6 +201,46 @@ class Client():
             print(f"Error receiving files: {e}")
             traceback.print_exc()
 
+    def music_playback(self):
+        try:
+            while True:
+                song_request = input(
+                    "Enter the name of the song you wish to play: ")
+
+                message = json.dumps({
+                    "REQUEST_TYPE": "SONG_REQUEST",
+                    "SONG_NAME": song_request
+                })
+
+                print("HERE1")
+                self.client_socket.sendall(message.encode("utf-8"))
+                print("HERE2")
+
+                # Write the WAV data to a temporary file in the "bin" folder
+                temp_wav_path = os.path.join("bin", "temp.wav")
+                with open(temp_wav_path, 'wb') as temp_wav_file:
+                    while True:
+                        wav_data_chunk = self.client_socket.recv(4096)
+                        if not wav_data_chunk:
+                            break
+                        temp_wav_file.write(wav_data_chunk)
+                        # Play the temporary WAV file
+
+                self.play_wav(temp_wav_path)
+
+                # ask the user if they want to play another song
+                play_another = input(
+                    "Do you want to play another song? (yes/no): ")
+                if play_another.lower() == "yes":
+                    continue
+                if play_another.lower() == "no":
+                    print("Goodbye")
+                    break
+
+        except Exception as e:
+            print(f"Error handling music request: {e}")
+            traceback.print_exc()
+
     def handle_music_request(self):
         """
         Handles the music request from the user.
@@ -212,47 +252,18 @@ class Client():
             self.client_socket.connect(
                 (self.content_node_info[0], self.content_node_info[1]))
 
-            try:
-                song_request = input(
-                    "Enter the name of the song you wish to play: ")
+            self.music_playback()
 
-                message = json.dumps({
-                    "REQUEST_TYPE": "SONG_REQUEST",
-                    "SONG_NAME": song_request
-                })
-
-                self.client_socket.sendall(message.encode("utf-8"))
-
-                # Write the WAV data to a temporary file in the "bin" folder
-                temp_wav_path = os.path.join("bin", "temp.wav")
-                with open(temp_wav_path, 'wb') as temp_wav_file:
-                    while True:
-                        wav_data_chunk = self.client_socket.recv(4096)
-                        if not wav_data_chunk:
-                            break
-                        temp_wav_file.write(wav_data_chunk)
-                        # Play the temporary WAV file
-                self.play_wav(temp_wav_path)
-
-                # ask the user if they want to play another song
-                play_another = input(
-                    "Do you want to play another song? (yes/no): ")
-                if play_another.lower() == "yes":
-                    self.handle_music_request()
-
-            except Exception as e:
-                print(f"Error handling music request: {e}")
-                traceback.print_exc()
         except:
             print("Error: Connection to the server was forcibly closed.")
 
     def play_wav(self, wav_path):
-        print(f"Playing {wav_path}")
-        playsound.playsound(wav_path)
-        # Delete the temporary WAV file when done
-        # return back to the function that called it
-        os.remove(wav_path)
-        return True
+        try:
+            print(f"Playing {wav_path}")
+            playsound.playsound(wav_path)
+
+        except playsound.PlaysoundException:
+            print(f"Error playing WAV file")
 
     def start(self):
         """

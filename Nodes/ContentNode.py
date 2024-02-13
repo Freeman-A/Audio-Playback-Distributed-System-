@@ -92,6 +92,9 @@ class ContentNode:
                 client_request = client_socket.recv(1024).decode("utf-8")
                 return client_request
 
+            except ConnectionAbortedError:
+                print("Connection aborted by client")
+                return
             except Exception as e:
                 print(f"Error receiving client messages: {e}")
                 return
@@ -102,11 +105,13 @@ class ContentNode:
             client_message = json.loads(client_message)
             request_type = client_message.get("REQUEST_TYPE")
 
+            print(client_message)
+
             if request_type == "REQUEST_FILES":
                 # Send available files to client
                 json_data = json.dumps(self.available_files)
                 client_socket.sendall(json_data.encode("utf-8"))
-            if request_type == "SONG_REQUEST":
+            elif request_type == "SONG_REQUEST":
 
                 song_name = client_message.get("SONG_NAME")
 
@@ -118,9 +123,8 @@ class ContentNode:
 
                     client_socket.sendall(audio_data)
 
-                if song_name in self.available_files:
-                    pass
-
+        except ConnectionAbortedError:
+            print("Connection aborted by client")
         except Exception as e:
             print(f"Error handling client request: {e}")
         finally:
