@@ -205,16 +205,16 @@ class Client():
 
     def send_music_request(self):
         try:
-            song_request = input(
+            request = input(
                 "Enter the name of the song you wish to play, or 'exit' to leave the program: ")
 
-            if song_request.lower() == "exit":
+            if request.lower() == "exit":
                 self.client_socket.close()
                 exit()
 
             message = json.dumps({
                 "REQUEST_TYPE": "SONG_REQUEST",
-                "SONG_NAME": song_request})
+                "SONG_NAME": request})
 
             self.client_socket.sendall(message.encode("utf-8"))
 
@@ -237,6 +237,8 @@ class Client():
                     while True:
                         wav_data_chunk = self.client_socket.recv(4096)
                         if not wav_data_chunk:
+                            print("No audio data - Song doesnt exist")
+                            temp_wav_file = None
                             break
                         temp_wav_file.write(wav_data_chunk)
                         # Play the temporary WAV file
@@ -265,9 +267,14 @@ class Client():
 
     def audio_control(self, wav_path):
         try:
+            if wav_path is None:
+                print("Error: No audio file found")
+                return
+
             pygame.mixer.init()
 
             sound = pygame.mixer.Sound(wav_path)
+
             sound.play()
 
             input_commands = input(
@@ -284,9 +291,8 @@ class Client():
                 print("Invalid command")
                 return
 
-        except Exception as e:
-            print(f"Error: Unable to play music - {e}")
-            traceback.print_exc()
+        except Exception:
+            print(f"Error: Unable to play music")
 
     def start(self):
         if self.bootstrap_ip is None:

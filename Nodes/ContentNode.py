@@ -97,7 +97,8 @@ class ContentNode:
                 print("Connection aborted by client")
                 return
             except Exception as e:
-                print(f"Error receiving client messages: {e}")
+                print(
+                    f"Error receiving client message - Client may have disconnected: {e}")
                 return
 
     def send_audio_content(self, client_socket, audio_file_path):
@@ -123,6 +124,11 @@ class ContentNode:
                     audio_file_path = os.path.join(
                         "data", "music", song_name)
                     self.send_audio_content(client_socket, audio_file_path)
+                else:
+                    # Send a message indicating that the requested song is not available
+                    print(f"Requested song {song_name} not available")
+                    client_socket.sendall(
+                        "".encode("utf-8"))
 
         except ConnectionAbortedError:
             print("Connection aborted by client")
