@@ -5,7 +5,7 @@ import traceback
 import json
 import time
 import os
-import playsound
+import pygame
 
 
 class Client():
@@ -201,21 +201,36 @@ class Client():
             print(f"Error receiving files: {e}")
             traceback.print_exc()
 
+    def send_music_request(self):
+        try:
+            song_request = input(
+                "Enter the name of the song you wish to play, or 'exit' to leave the program: ")
+
+            if song_request.lower() == "exit":
+                self.client_socket.close()
+                exit()
+
+            message = json.dumps({
+                "REQUEST_TYPE": "SONG_REQUEST",
+                "SONG_NAME": song_request})
+
+            self.client_socket.sendall(message.encode("utf-8"))
+
+        except Exception as e:
+            print(f"Error sending music request: {e}")
+            traceback.print_exc()
+
     def music_playback(self):
         try:
             while True:
-                song_request = input(
-                    "Enter the name of the song you wish to play: ")
+                self.connect_to_contentNode()
+                self.send_music_request()
 
-                message = json.dumps({
-                    "REQUEST_TYPE": "SONG_REQUEST",
-                    "SONG_NAME": song_request
-                })
-
-                self.client_socket.sendall(message.encode("utf-8"))
-
-                # Write the WAV data to a temporary file in the "bin" folder
+                # if ther eisa  file in the location remove it and then create a new one
                 temp_wav_path = os.path.join("bin", "temp.wav")
+                if os.path.exists(temp_wav_path):
+                    os.remove(temp_wav_path)
+
                 with open(temp_wav_path, 'wb') as temp_wav_file:
                     while True:
                         wav_data_chunk = self.client_socket.recv(4096)
@@ -224,22 +239,15 @@ class Client():
                         temp_wav_file.write(wav_data_chunk)
                         # Play the temporary WAV file
 
-                self.play_wav(temp_wav_path)
+                self.client_socket.close()
 
-                # ask the user if they want to play another song
-                play_another = input(
-                    "Do you want to play another song? (yes/no): ")
-                if play_another.lower() == "yes":
-                    continue
-                if play_another.lower() == "no":
-                    print("Goodbye")
-                    break
+                self.audio_control(temp_wav_path)
 
         except Exception as e:
             print(f"Error handling music request: {e}")
             traceback.print_exc()
 
-    def handle_music_request(self):
+    def connect_to_contentNode(self):
         """
         Handles the music request from the user.
         """
@@ -250,18 +258,33 @@ class Client():
             self.client_socket.connect(
                 (self.content_node_info[0], self.content_node_info[1]))
 
-            self.music_playback()
-
         except:
             print("Error: Connection to the server was forcibly closed.")
 
-    def play_wav(self, wav_path):
+    def audio_control(self, wav_path):
         try:
-            print(f"Playing {wav_path}")
-            playsound.playsound(wav_path)
+            pygame.mixer.init()
 
-        except playsound.PlaysoundException:
-            print(f"Error playing WAV file")
+            sound = pygame.mixer.Sound(wav_path)
+            sound.play()
+
+            input_commands = input(
+                "Type 'stop' to stop the song").lower()
+
+            time.sleep(1)
+
+            if input_commands == "stop":
+                pygame.mixer.Sound.stop(sound)
+                if os.path.exists(wav_path):
+                    os.remove(wav_path)
+                    return
+            else:
+                print("Invalid command")
+                return
+
+        except Exception as e:
+            print(f"Error: Unable to play music - {e}")
+            traceback.print_exc()
 
     def start(self):
         """
@@ -278,10 +301,13 @@ class Client():
                 print(
                     """--------------------------------\nLoggin Successful\n--------------------------------""")
                 self.recive_available_music()
-                self.handle_music_request()
+                self.music_playback()
 
+        except Exception as e:
+            print(f"Error: {e}")
+            traceback.print_exc()
         except:
-            print("Error: Authentication failed.")
+            print("""Program terminated! Thanks for using our service""")
             return
 
 

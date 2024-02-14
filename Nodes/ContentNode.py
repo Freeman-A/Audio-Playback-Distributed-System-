@@ -99,33 +99,29 @@ class ContentNode:
                 print(f"Error receiving client messages: {e}")
                 return
 
+    def send_audio_content(self, client_socket, audio_file_path):
+        try:
+            with open(audio_file_path, 'rb') as audio_file:
+                audio_data = audio_file.read()
+            client_socket.sendall(audio_data)
+        except Exception as e:
+            print(f"Error sending audio content: {e}")
+
     def handle_client_request(self, client_socket):
         try:
-            while True:
-                client_message = self.recive_client_messages(client_socket)
-                if not client_message:
-                    print("No message received from client")
-                    continue
-
-                client_message = json.loads(client_message)
-                request_type = client_message.get("REQUEST_TYPE")
-
-                if request_type == "REQUEST_FILES":
-                    # Send available files to client
-                    json_data = json.dumps(self.available_files)
-                    client_socket.sendall(json_data.encode("utf-8"))
-                elif request_type == "SONG_REQUEST":
-
-                    song_name = client_message.get("SONG_NAME")
-
-                    if song_name in self.available_files:
-                        audio_file_path = os.path.join(
-                            "data", "music", song_name)
-
-                        with open(audio_file_path, 'rb') as audio_file:
-                            audio_data = audio_file.read()
-
-                        client_socket.sendall(audio_data)
+            client_message = self.recive_client_messages(client_socket)
+            client_message = json.loads(client_message)
+            request_type = client_message.get("REQUEST_TYPE")
+            if request_type == "REQUEST_FILES":
+                # Send available files to client
+                json_data = json.dumps(self.available_files)
+                client_socket.sendall(json_data.encode("utf-8"))
+            elif request_type == "SONG_REQUEST":
+                song_name = client_message.get("SONG_NAME")
+                if song_name in self.available_files:
+                    audio_file_path = os.path.join(
+                        "data", "music", song_name)
+                    self.send_audio_content(client_socket, audio_file_path)
 
         except ConnectionAbortedError:
             print("Connection aborted by client")
