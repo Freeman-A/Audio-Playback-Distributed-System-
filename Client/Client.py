@@ -28,7 +28,7 @@ class Client():
             try:
                 self.client_socket = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM)
-                self.client_socket.connect(("172.24.112.1", 50000))
+                self.client_socket.connect(("192.168.128.1", 50000))
 
                 # Send node details to bootstrapper
                 client_details = {

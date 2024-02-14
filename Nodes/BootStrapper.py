@@ -78,7 +78,7 @@ class BootStrapper():
 
                     if message.get("purpose") == "REQUEST_NODE_INFO":
                         node_info = self.get_node_info(
-                            node_name, node_type)
+                            node_name)
                         client_socket.sendall(
                             json.dumps(node_info).encode("utf-8"))
 
@@ -176,7 +176,7 @@ class BootStrapper():
         threading.Thread(
             target=self.service_node_checker).start()
 
-    def get_node_info(self, node_name, node_type):
+    def get_node_info(self, node_name):
         """
         Get the address and port of the node with the given name.
         Args:
@@ -184,12 +184,12 @@ class BootStrapper():
         Returns:
             tuple: The address and port of the node.
         """
-        if node_type == "AuthNode":
-            return self.auth_nodes.get(node_name)
-        elif node_type == "ContentNode":
-            return self.content_nodes.get(node_name)
+        if node_name in self.auth_nodes:
+            return self.auth_nodes[node_name]
+        elif node_name in self.content_nodes:
+            return self.content_nodes[node_name]
         else:
-            return None
+            return {"error": "Node not found"}
 
 
 if __name__ == "__main__":

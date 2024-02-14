@@ -41,7 +41,7 @@ class ContentNode:
             bootstrapper_client = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
             bootstrapper_client.settimeout(3)
-            bootstrapper_client.connect(("172.24.112.1", 50000))
+            bootstrapper_client.connect(("192.168.128.1", 50000))
             print("Connected to load balancer")
 
             # Send node details to load balancer
