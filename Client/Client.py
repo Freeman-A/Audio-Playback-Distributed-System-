@@ -313,9 +313,8 @@ class Client():
                 self.recive_available_music()
                 self.music_playback()
 
-        except Exception as e:
-            print(f"Error: {e}")
-            traceback.print_exc()
+        except Exception:
+            print("Closing the program")
         except:
             print("""Program terminated! Thanks for using our service""")
             return
