@@ -101,27 +101,31 @@ class ContentNode:
 
     def handle_client_request(self, client_socket):
         try:
-            client_message = self.recive_client_messages(client_socket)
-            client_message = json.loads(client_message)
-            request_type = client_message.get("REQUEST_TYPE")
+            while True:
+                client_message = self.recive_client_messages(client_socket)
+                if not client_message:
+                    print("No message received from client")
+                    continue
 
-            print(client_message)
+                client_message = json.loads(client_message)
+                request_type = client_message.get("REQUEST_TYPE")
 
-            if request_type == "REQUEST_FILES":
-                # Send available files to client
-                json_data = json.dumps(self.available_files)
-                client_socket.sendall(json_data.encode("utf-8"))
-            elif request_type == "SONG_REQUEST":
+                if request_type == "REQUEST_FILES":
+                    # Send available files to client
+                    json_data = json.dumps(self.available_files)
+                    client_socket.sendall(json_data.encode("utf-8"))
+                elif request_type == "SONG_REQUEST":
 
-                song_name = client_message.get("SONG_NAME")
+                    song_name = client_message.get("SONG_NAME")
 
-                if song_name in self.available_files:
-                    audio_file_path = os.path.join("data", "music", song_name)
+                    if song_name in self.available_files:
+                        audio_file_path = os.path.join(
+                            "data", "music", song_name)
 
-                    with open(audio_file_path, 'rb') as audio_file:
-                        audio_data = audio_file.read()
+                        with open(audio_file_path, 'rb') as audio_file:
+                            audio_data = audio_file.read()
 
-                    client_socket.sendall(audio_data)
+                        client_socket.sendall(audio_data)
 
         except ConnectionAbortedError:
             print("Connection aborted by client")

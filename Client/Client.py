@@ -212,9 +212,7 @@ class Client():
                     "SONG_NAME": song_request
                 })
 
-                print("HERE1")
                 self.client_socket.sendall(message.encode("utf-8"))
-                print("HERE2")
 
                 # Write the WAV data to a temporary file in the "bin" folder
                 temp_wav_path = os.path.join("bin", "temp.wav")
