@@ -9,8 +9,9 @@ import sqlite3
 
 
 class AuthNode():
-    def __init__(self):
+    def __init__(self, bootstrap_ip=None):
         self.node_name = f"AN{random.randint(0, 10)}"
+        self.bootstrap_ip = "192.168.128.1"
         self.node_ip = None
         self.node_port = None
         self.server_socket = None
@@ -36,7 +37,7 @@ class AuthNode():
             bootstrapper_client = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
             bootstrapper_client.settimeout(3)
-            bootstrapper_client.connect(("192.168.128.1", 50000))
+            bootstrapper_client.connect((self.bootstrap_ip, 50000))
             print("Connected to load balancer")
 
             # Send node details to load balancer
@@ -166,6 +167,10 @@ class AuthNode():
                 connection.commit()
 
     def run(self):
+        if self.bootstrap_ip is None:
+            self.bootstrap_ip = input("Enter the IP address of the server: ")
+            return
+
         server_thread = threading.Thread(target=self.start_auth_node)
         server_thread.start()
 

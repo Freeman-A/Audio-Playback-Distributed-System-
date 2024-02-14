@@ -31,6 +31,7 @@ class BootStrapper():
 
     def __init__(self):
         self.lock = threading.Lock()
+        self.bootstrap_ip = None
         self.auth_nodes = {}
         self.content_nodes = {}
         self.node_counter = {"AuthNodes": 0, "ContentNodes": 0}
@@ -48,9 +49,9 @@ class BootStrapper():
     def start_bootstrap(self):
         self.bootstrap_socket = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM)
-        bootstrap_ip = socket.gethostbyname(socket.gethostname())
+        self.bootstrap_ip = socket.gethostbyname(socket.gethostname())
         try:
-            port = self.bind_server_socket(bootstrap_ip)
+            port = self.bind_server_socket(self.bootstrap_ip)
 
         except:
             print(f"Unable to bind to any port in range 50000, 50010")
@@ -171,6 +172,8 @@ class BootStrapper():
             time.sleep(60)
 
     def run(self):
+        self.bootstrap_ip = input("Enter the IP address of the server: ")
+
         threading.Thread(target=self.start_bootstrap).start()
 
         threading.Thread(

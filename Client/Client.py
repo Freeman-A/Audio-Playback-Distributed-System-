@@ -14,9 +14,11 @@ class Client():
         Initializes a Client object.
         """
         self.client_socket = None
+        self.bootstrap_ip = None
         self.authenticated = False
         self.content_node_info = None
         self.auth_node_info = None
+        self.bootstrap_ip = None
 
     def get_node_details(self, purpose, max_retries=3, retry_delay=3):
         """
@@ -28,7 +30,7 @@ class Client():
             try:
                 self.client_socket = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM)
-                self.client_socket.connect(("192.168.128.1", 50000))
+                self.client_socket.connect((self.bootstrap_ip, 50000))
 
                 # Send node details to bootstrapper
                 client_details = {
@@ -269,7 +271,7 @@ class Client():
             sound.play()
 
             input_commands = input(
-                "Type 'stop' to stop the song").lower()
+                "Type 'stop' to stop the song: ").lower()
 
             time.sleep(1)
 
@@ -287,6 +289,8 @@ class Client():
             traceback.print_exc()
 
     def start(self):
+        if self.bootstrap_ip is None:
+            self.bootstrap_ip = input("Enter the IP address of the server: ")
         """
         Starts the authentication process in a separate thread.
         """
