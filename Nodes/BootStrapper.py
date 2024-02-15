@@ -144,81 +144,32 @@ class BootStrapper():
             print(f"Error starting {node_path}: {e}")
 
     def service_node_checker(self):
-        check_interval = 10  # seconds
-        health_check_interval = 10 * 6  # 10 minutes
-
-        first_iteration = True  # Flag to identify the first iteration
-
         while True:
-            # Check minimum node count immediately on the first iteration
-            if first_iteration or time.time() % health_check_interval == 0:
-                if self.node_counter["AuthNodes"] < 2 or self.node_counter["ContentNodes"] < 2:
-                    print("Warning: Insufficient Nodes available - Services Offline")
-                    print("Booting up nodes")
 
-                    if self.node_counter["AuthNodes"] < 2:
-                        print("Booting up AuthNodes")
-                        file_location = "nodes/AuthNode.py"
-                        self.start_node(file_location)
+            # check if the node counts are below the threshold and send a warning message
+            # if the node counts are below the threshold execute the programs to start the nodes
+            if self.node_counter["AuthNodes"] < 1 and self.node_counter["ContentNodes"] < 1:
+                print("Warning: No Nodes available - Services Offline")
+                print("Booting up nodes")
 
-                    if self.node_counter["ContentNodes"] < 2:
-                        print("Booting up ContentNodes")
-                        file_location = "nodes/ContentNode.py"
-                        self.start_node(file_location)
+                if self.node_counter["AuthNodes"] < 1:
+                    print("Booting up AuthNodes")
+                    file_location = "nodes/AuthNode.py"
 
-                # Reset the first_iteration flag after the initial check
-                first_iteration = False
+                    self.start_node(file_location)
 
-            if time.time() % check_interval == 0:
-                # Check the health of each node in both the AuthNodes and ContentNodes dictionaries
-                for node in self.auth_nodes:
-                    self.check_node_health(node)
-                for node in self.content_nodes:
-                    self.check_node_health(node)
+                if self.node_counter["ContentNodes"] < 1:
+                    print("Booting up ContentNodes")
+                    file_location = "nodes/ContentNode.py"
 
-    def check_node_health(self, node_name):
-        temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        node_info = self.get_node_info(node_name)
+                    self.start_node(file_location)
 
-        try:
-            temp_socket.connect((node_info["address"], node_info["port"]))
-            temp_socket.settimeout(10)
-            live_message = {
-                "purpose": "HEALTH_CHECK",
-                "node_type": "LoadBalancer"
-            }
+            else:
+                print("Services running")
+                print(f"AuthNodes: {self.node_counter['AuthNodes']}")
+                print(f"ContentNodes: {self.node_counter['ContentNodes']}")
 
-            temp_socket.sendall(json.dumps(live_message).encode("utf-8"))
-
-            response = temp_socket.recv(1024).decode("utf-8")
-            if response != "ALIVE":
-                print(f"Node {node_name} is dead")
-                self.remove_node(node_name)
-            temp_socket.close()
-            return
-
-        except socket.timeout:
-            print(
-                f"Timed out waiting for response from {node_name}. Assuming it's not alive.")
-            self.remove_node(node_name)
-
-        except socket.error:
-            print(
-                f"Node {node_name} is not responding. Removing from the list.")
-            self.remove_node(node_name)
-
-        finally:
-            temp_socket.close()
-
-    def remove_node(self, node_name):
-        if node_name in self.auth_nodes:
-            with self.lock:
-                del self.auth_nodes[node_name]
-                self.node_counter["AuthNodes"] -= 1
-        elif node_name in self.content_nodes:
-            with self.lock:
-                del self.content_nodes[node_name]
-                self.node_counter["ContentNodes"] -= 1
+            time.sleep(60)
 
     def run(self):
         self.bootstrap_ip = input("Enter the IP address of the server: ")
