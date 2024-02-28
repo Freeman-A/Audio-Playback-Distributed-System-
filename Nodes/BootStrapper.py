@@ -9,33 +9,14 @@ import threading
 
 
 class BootStrapper():
-    """
-    A class representing a load balancer node.
-
-    Inherits from the `socket.socket` class.
-
-    Attributes:
-        lock (threading.Lock): A lock object for thread synchronization.
-        connected_nodes (dict): A dictionary to store information about connected nodes.
-
-    Methods:
-        initialize: Binds the socket to an available port in the range 50000-50010.
-        handle_connections: Handles a new connection to the load balancer.
-        start: Starts the load balancer by listening for incoming connections.
-
-    Usage:
-        load_balance_node = Bootstrapper(socket.AF_INET, socket.SOCK_STREAM)
-        if load_balance_node.initialize():
-            load_balance_node.start()
-    """
-
     def __init__(self):
         self.lock = threading.Lock()
-        self.bootstrap_ip = None
+        self.bootstrap_ip = "10.30.8.126"
         self.auth_nodes = {}
         self.content_nodes = {}
         self.node_counter = {"AuthNodes": 0, "ContentNodes": 0}
         self.bootstrap_socket = None
+        self.threads = []  # List to keep track of threads
 
     def bind_server_socket(self, host):
         for port in range(50000, 50011):
@@ -47,12 +28,10 @@ class BootStrapper():
                 print(f"BootStrap bind failed on {host}:{port}")
 
     def start_bootstrap(self):
-        self.bootstrap_socket = socket.socket(
-            socket.AF_INET, socket.SOCK_STREAM)
+        self.bootstrap_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.bootstrap_ip = socket.gethostbyname(socket.gethostname())
         try:
             port = self.bind_server_socket(self.bootstrap_ip)
-
         except:
             print(f"Unable to bind to any port in range 50000, 50010")
 
@@ -62,12 +41,11 @@ class BootStrapper():
         while True:
             client_socket, client_address = self.bootstrap_socket.accept()
 
-            # Handle client connection here
-            threading.Thread(target=self.handle_client_messages,
-                             args=(client_socket,)).start()
+            t = threading.Thread(target=self.handle_client_messages, args=(client_socket,))
+            self.threads.append(t)
+            t.start()
 
     def handle_client_messages(self, client_socket):
-
         while True:
             try:
                 message_str = client_socket.recv(1024).decode("utf-8")
@@ -78,14 +56,10 @@ class BootStrapper():
                     node_name = message.get("node_name")
 
                     if message.get("purpose") == "REQUEST_NODE_INFO":
-                        node_info = self.get_node_info(
-                            node_name)
-                        client_socket.sendall(
-                            json.dumps(node_info).encode("utf-8"))
+                        node_info = self.get_node_info(node_name)
+                        client_socket.sendall(json.dumps(node_info).encode("utf-8"))
 
                     if node_type == "AuthNode":
-                        print("AuthNode connected from ",
-                              client_socket.getpeername())
                         with self.lock:
                             self.auth_nodes[node_name] = {
                                 "address": message.get("node_IP"),
@@ -93,8 +67,6 @@ class BootStrapper():
                             }
                             self.node_counter["AuthNodes"] += 1
                     elif node_type == "ContentNode":
-                        print("ContentNode connected from ",
-                              client_socket.getpeername())
                         with self.lock:
                             self.content_nodes[node_name] = {
                                 "address": message.get("node_IP"),
@@ -103,30 +75,18 @@ class BootStrapper():
                             self.node_counter["ContentNodes"] += 1
 
                     elif node_type == "Client":
-                        print("Client connected from ",
-                              client_socket.getpeername())
                         if message.get("purpose") == "REQUEST_AUTH_NODE":
-                            print("Client requesting AuthNode")
-
                             if self.node_counter["AuthNodes"] > 0:
-                                auth_node = random.choice(
-                                    list(self.auth_nodes.values()))
-                                client_socket.sendall(
-                                    json.dumps(auth_node).encode("utf-8"))
+                                auth_node = random.choice(list(self.auth_nodes.values()))
+                                client_socket.sendall(json.dumps(auth_node).encode("utf-8"))
                             else:   # If no AuthNode is available
-                                client_socket.sendall(
-                                    json.dumps({"error": "No AuthNode available"}).encode("utf-8"))
+                                client_socket.sendall(json.dumps({"error": "No AuthNode available"}).encode("utf-8"))
                         if message.get("purpose") == "REQUEST_CONTENT_NODE":
-                            print("Client requesting ContentNode")
-
                             if self.node_counter["ContentNodes"] > 0:
-                                content_node = random.choice(
-                                    list(self.content_nodes.values()))
-                                client_socket.sendall(
-                                    json.dumps(content_node).encode("utf-8"))
+                                content_node = random.choice(list(self.content_nodes.values()))
+                                client_socket.sendall(json.dumps(content_node).encode("utf-8"))
                             else:   # If no ContentNode is available
-                                client_socket.sendall(
-                                    json.dumps({"error": "No ContentNode available"}).encode("utf-8"))
+                                client_socket.sendall(json.dumps({"error": "No ContentNode available"}).encode("utf-8"))
 
                     else:
                         print("Invalid node type")
@@ -145,23 +105,18 @@ class BootStrapper():
 
     def service_node_checker(self):
         while True:
-
-            # check if the node counts are below the threshold and send a warning message
-            # if the node counts are below the threshold execute the programs to start the nodes
             if self.node_counter["AuthNodes"] < 1 and self.node_counter["ContentNodes"] < 1:
                 print("Warning: No Nodes available - Services Offline")
                 print("Booting up nodes")
 
-                if self.node_counter["AuthNodes"] < 1:
+                if self.node_counter["AuthNodes"] < 2:
                     print("Booting up AuthNodes")
                     file_location = "nodes/AuthNode.py"
-
                     self.start_node(file_location)
 
-                if self.node_counter["ContentNodes"] < 1:
+                if self.node_counter["ContentNodes"] < 2:
                     print("Booting up ContentNodes")
                     file_location = "nodes/ContentNode.py"
-
                     self.start_node(file_location)
 
             else:
@@ -174,19 +129,19 @@ class BootStrapper():
     def run(self):
         self.bootstrap_ip = input("Enter the IP address of the server: ")
 
-        threading.Thread(target=self.start_bootstrap).start()
+        t1 = threading.Thread(target=self.start_bootstrap)
+        t1.start()
+        self.threads.append(t1)
 
-        threading.Thread(
-            target=self.service_node_checker).start()
+        t2 = threading.Thread(target=self.service_node_checker)
+        t2.start()
+        self.threads.append(t2)
+
+        # Wait for threads to finish before exiting
+        for t in self.threads:
+            t.join()
 
     def get_node_info(self, node_name):
-        """
-        Get the address and port of the node with the given name.
-        Args:
-            node_name (str): The name of the node.
-        Returns:
-            tuple: The address and port of the node.
-        """
         if node_name in self.auth_nodes:
             return self.auth_nodes[node_name]
         elif node_name in self.content_nodes:

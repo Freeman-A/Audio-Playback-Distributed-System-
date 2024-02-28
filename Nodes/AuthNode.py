@@ -11,7 +11,7 @@ import sqlite3
 class AuthNode():
     def __init__(self, bootstrap_ip=None):
         self.node_name = f"AN{random.randint(0, 10)}"
-        self.bootstrap_ip = "192.168.128.1"
+        self.bootstrap_ip = "10.30.8.126"
         self.node_ip = None
         self.node_port = None
         self.server_socket = None
