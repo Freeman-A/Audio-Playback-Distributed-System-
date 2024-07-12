@@ -11,7 +11,7 @@ import sqlite3
 class AuthNode():
     def __init__(self, bootstrap_ip=None):
         self.node_name = f"AN{random.randint(0, 10)}"
-        self.bootstrap_ip = "192.168.128.1"
+        self.bootstrap_ip = "10.30.8.126"
         self.node_ip = None
         self.node_port = None
         self.server_socket = None
@@ -19,7 +19,7 @@ class AuthNode():
         self.user_cursor = None
 
     def bind_server_socket(self, host):
-        port_range = range(50001, 50011)
+        port_range = range(50000, 50011)
 
         for port in port_range:
             try:
@@ -90,33 +90,27 @@ class AuthNode():
                     purpose = message.get("purpose")
                     username = message.get("username")
                     password = message.get("password")
-                    node_type = message.get("node_type")
 
-                    if node_type == "Client":
-                        match purpose:
-                            case "login":
+                    match purpose:
+                        case "login":
 
-                                validate_credentials_status = self.validate_credentials(
-                                    username, password)
+                            validate_credentials_status = self.validate_credentials(
+                                username, password)
 
-                                if validate_credentials_status:
-                                    client_socket.sendall(
-                                        validate_credentials_status.encode("utf-8"))
+                            if validate_credentials_status:
+                                client_socket.sendall(
+                                    validate_credentials_status.encode("utf-8"))
 
-                            case "register":
-                                register_user_status = self.register_user(
-                                    username, password)
+                        case "register":
+                            register_user_status = self.register_user(
+                                username, password)
 
-                                if register_user_status:
-                                    client_socket.sendall(
-                                        register_user_status.encode("utf-8"))
+                            if register_user_status:
+                                client_socket.sendall(
+                                    register_user_status.encode("utf-8"))
 
-                            case _:
-                                print("Invalid purpose")
-
-                    if node_type == "LoadBalancer":
-                        if purpose == "HEALTH_CHECK":
-                            client_socket.sendall("ALIVE".encode("utf-8"))
+                        case _:
+                            print("Invalid purpose")
 
             except json.JSONDecodeError:
                 print("Error decoding JSON. Empty or invalid message received.")

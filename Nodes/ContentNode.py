@@ -9,7 +9,7 @@ import time
 class ContentNode:
     def __init__(self, bootstrap_ip=None):
         self.node_name = f"CN{random.randint(0, 10)}"
-        self.bootstrap_ip = "192.168.128.1"
+        self.bootstrap_ip = "10.30.8.126"
         self.node_ip = None
         self.node_port = None
         self.server_socket = None
@@ -24,7 +24,7 @@ class ContentNode:
             return available_files
 
     def bind_server_socket(self, host):
-        port_range = range(50001, 50011)
+        port_range = range(50000, 50011)
 
         for port in port_range:
             try:
@@ -115,27 +115,21 @@ class ContentNode:
             client_message = json.loads(client_message)
             request_type = client_message.get("REQUEST_TYPE")
 
-            node_type = client_message.get("node_type")
-
-            if node_type == "Client":
-                if request_type == "REQUEST_FILES":
-                    # Send available files to client
-                    json_data = json.dumps(self.available_files)
-                    client_socket.sendall(json_data.encode("utf-8"))
-                elif request_type == "SONG_REQUEST":
-                    song_name = client_message.get("SONG_NAME")
-                    if song_name in self.available_files:
-                        audio_file_path = os.path.join(
-                            "data", "music", song_name)
-                        self.send_audio_content(client_socket, audio_file_path)
-                    else:
-                        # Send a message indicating that the requested song is not available
-                        print(f"Requested song {song_name} not available")
-                        client_socket.sendall(
-                            "".encode("utf-8"))
-            if node_type == "LoadBalancer":
-                if request_type == "HEALTH_CHECK":
-                    client_socket.sendall("ALIVE".encode("utf-8"))
+            if request_type == "REQUEST_FILES":
+                # Send available files to client
+                json_data = json.dumps(self.available_files)
+                client_socket.sendall(json_data.encode("utf-8"))
+            elif request_type == "SONG_REQUEST":
+                song_name = client_message.get("SONG_NAME")
+                if song_name in self.available_files:
+                    audio_file_path = os.path.join(
+                        "data", "music", song_name)
+                    self.send_audio_content(client_socket, audio_file_path)
+                else:
+                    # Send a message indicating that the requested song is not available
+                    print(f"Requested song {song_name} not available")
+                    client_socket.sendall(
+                        "".encode("utf-8"))
 
         except ConnectionAbortedError:
             print("Connection aborted by client")
